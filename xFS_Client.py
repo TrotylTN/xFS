@@ -65,8 +65,6 @@ INVALID_REPLY = "IV"
 INVALID_DL_REPLY = compressNumber4Bytes(0) + compressNumber4Bytes(0) + compressLength2Bytes(0)
 NOEXIST_DL_REPLY = compressNumber4Bytes(0) + compressNumber4Bytes(1) + compressLength2Bytes(0)
 UNKNOWN_DL_REPLY = compressNumber4Bytes(0) + compressNumber4Bytes(2) + compressLength2Bytes(0)
-# {0}: total packets, {1}: # for this packet
-UPDATELIST_REPLY = "{0}{1}"
 ACK_REPLY = "\x06"
 NONACK_REPLY = "\x15"
 
@@ -77,11 +75,14 @@ def fillPacket(s):
 ERROR_FD = ": Received Find request \"{0}\" from {1}:{2}, invalid request for \
 clients"
 INFO_DL = ": Received Download request \"{0}\" from {1}:{2}"
-INFO_DL_OK = ": File \"{0}\" SHA-256 and contents have been loaded into sending\
+INFO_DL_OK = ": File \"{0}\" SHA-512 and contents have been loaded into sending\
  queue to {1}:{2}"
 ERROR_DL_NAME = ": Received invalid filename \"{0}\" from {1}:{2}"
 ERROR_DL_NO = ": No local file \"{0}\" requested from {1}:{2}"
 ERROR_UNKNOWN = ": Received unrecognized request \"{0}\" from {1}:{2}"
+INFO_UD_OK = ": Directory \"{0}\" SHA-512 and lists have been loaded into sending\
+ queue to {1}:{2}"
+
 
 thisServerLoad = 0
 logQueue = Queue()
@@ -233,17 +234,48 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
             thisServerLoad -= 1
     elif xFSrequest[:2] == "GL":
         # a get load request
+        # TODO log
         xFSreply.append(str(thisServerLoad).encode())
     elif xFSrequest[:2] == "UD":
         # reply the file list to the requester
-        # TODO
-        pass
+        # TODO log
+        fileslist = [f for f in os.listdir(sharedDir) \
+            if os.path.isfile(os.path.join(sharedDir, f))]
+        # encoding the list to binary
+        listcontent = ";".join(fileslist).encode()
+        try:
+            total_packets = math.ceil(len(listcontent) / MAX_CONTECT_SIZE)
+            # start to seal packet zero, SHA-512
+            packet_header = compressNumber4Bytes(total_packets) + \
+                compressNumber4Bytes(0) + compressLength2Bytes(64)
+            packet_content = hashSHA512Bytes(listcontent)
+            # total_packets/0/64: SHA-512 for verification
+            xFSreply.append(packet_header + packet_content)
+
+            for i in range(total_packets):
+                this_content = listcontent[i * MAX_CONTECT_SIZE:
+                    (i + 1) * MAX_CONTECT_SIZE]
+                this_header = compressNumber4Bytes(total_packets) + \
+                    compressNumber4Bytes(i + 1) + \
+                    compressLength2Bytes(len(this_content))
+                xFSreply.append(this_header + this_content)
+            msg = str(datetime.now()) + INFO_UD_OK.format(sharedDir, srcIP, srcPort)
+            logQueue.put(msg + '\n')
+            print(msg)
+        except error as msg:
+            msg = str(datetime.now()) + ": " + msg
+            logQueue.put(msg + '\n')
+            print(msg)
+            # met error, clear the queue and fill it with UNKNOWN_DL_REPLY
+            xFSreply = list()
+            xFSreply.append(UNKNOWN_DL_REPLY)
     else:
         msg = str(datetime.now()) + ERROR_UNKNOWN.format(xFSrequest, srcIP, srcPort)
         logQueue.put(msg + '\n')
         # added a NAK reply
         xFSreply.append(NONACK_REPLY.encode())
 
+    # TODO log
     # send all packets in the reply queue
     for msg in xFSreply:
         sSock.send(fillPacket(msg))
