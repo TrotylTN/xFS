@@ -3,6 +3,7 @@
 # Written in Python 3
 
 import sys, threading, os
+import hashlib
 from socket import *
 from datetime import datetime
 from argparse import ArgumentParser
@@ -11,14 +12,22 @@ from queue import Queue
 MAX_PACKET_SIZE = 1024
 
 # {0}: filename
-FIND_REQUEST = "FD;{0}"
+FIND_REQUEST = "FD{0}"
 # {0}: filename
-DOWNLOAD_REQUEST = "DL;{0}"
+DOWNLOAD_REQUEST = "DL{0}"
 GETLOAD_REQUEST = "GL"
 UPDATELIST_REQUEST = "UD"
 
+INVALID_REPLY = "IV"
+# {0}: total packets, {1}: # for this packet
+# 0;0 means file does not exist
+# n;0 stands for the
+DOWNLOAD_REPLY = "{0};{1};"
+# {0}: total packets, {1}: # for this packet
+UPDATELIST_REPLY = "{0};{1};"
+
 def fillPacket(s):
-    return s + " " * (MAX_PACKET_SIZE - len(s))
+    return s + b" " * (MAX_PACKET_SIZE - len(s))
 
 thisServerLoad = 0
 logQueue = Queue()
@@ -91,18 +100,42 @@ you can enter \"help\" anytime to get it.\n")
         conn, srcAddr = sSock.accept()
         serverThread = threading.Thread(target=hostServer, args=(conn, srcAddr,
         sharedDir, logQueue))
+        serverThread.start()
 
 #------------------------------------------------------------------------------#
 # a thread to handle incoming transmission
 def hostServer(conn, srcAddr, sharedDir, logQueue):
     sSock = conn
-    request = sSock.recv(MAX_PACKET_SIZE).decode()
-    if len(request) == 0:
+    global thisServerLoad
+    xFSrequest = sSock.recv(MAX_PACKET_SIZE).decode().strip()
+    if len(xFSrequest) == 0:
         sSock.close()
         return
+    xFSreply = list()
+    if xFSrequest[:2] == "FD":
+        # a find filename request, this request cannot be replied from client
+        xFSreply.append(INVALID_REPLY.encode())
+    elif xFSrequest[:2] == "DL":
+        # a download request
+        # load + 1
 
+        thisServerLoad += 1
+        # TODO
+        # back to original
+        thisServerLoad -= 1
+    elif xFSrequest[:2] == "GL":
+        # a get load request
+        xFSreply.append(str(thisServerLoad).encode())
+    elif xFSrequest[:2] == "UD":
+        # reply the file list to the requester
+        # TODO
+        pass
+    # send all packets in the reply queue
+    for msg in xFSreply:
+        sSock.send(msg)
     # close this connection session
     sSock.close()
+    return
 
 #------------------------------------------------------------------------------#
 # a function will test whther a address is valid and reachable (return bool)
@@ -121,6 +154,9 @@ def checkFileName(filename):
     if ';' in filename or ':' in filename:
         return False
     return True
+
+def hashSHA256Hex(s):
+    return hashlib.sha256(s).hexdigest()
 
 #------------------------------------------------------------------------------#
 # subroutine to return the result for find request
