@@ -6,8 +6,22 @@ import sys, threading, os
 from socket import *
 from datetime import datetime
 from argparse import ArgumentParser
+from queue import Queue
 
 MAX_PACKET_SIZE = 1024
+
+# {0}: filename
+FIND_REQUEST = "FD;{0}"
+# {0}: filename
+DOWNLOAD_REQUEST = "DL;{0}"
+GETLOAD_REQUEST = "GL"
+UPDATELIST_REQUEST = "UD"
+
+def fillPacket(s):
+    return s + " " * (MAX_PACKET_SIZE - len(s))
+
+thisServerLoad = 0
+logQueue = Queue()
 
 def main():
     # main function
@@ -17,6 +31,9 @@ def main():
     # open a log file
     logFile = open("{0}-{1}.log".format(localIP, localPort), 'a')
     logFile.write(str(datetime.now()) + ": Client {0}:{1} starts.\n".format(localIP, localPort))
+    global thisServerLoad
+    thisServerLoad = 0
+    global logQueue
 
     # bind a socket
     socket_created = True
@@ -55,7 +72,8 @@ def main():
     print("    getload {server} {port}: get the load at a given peer \
 requested from another peer")
     print("    updatelist: will update local files' list to the tracking server")
-    print("    exit: exit the program")
+    print("    exit: exit the program\n")
+    print("xFS Client {0}:{1} is listening...\n".format(localIP, localPort))
     print("You can enter the commands above anytime during running.")
     print("If you need to see help information during runtime, \
 you can enter \"help\" anytime to get it.\n")
@@ -64,12 +82,29 @@ you can enter \"help\" anytime to get it.\n")
     monitorThread = threading.Thread(target=monitorCMD, args=(sSock, localIP,
         localPort, trackingServer, trackingPort, logFile, sharedDir))
     monitorThread.start()
+    # thread to write log information into file
+    logOutputThread = threading.Thread(target=writeToLog, args=(logFile, logQueue))
+    logOutputThread.start()
 
     # start to listen incoming transmission
-    print("xFS Client {0}:{1} is listening...".format(localIP, localPort))
     while True:
-        pass
+        conn, srcAddr = sSock.accept()
+        serverThread = threading.Thread(target=hostServer, args=(conn, srcAddr,
+        sharedDir, logQueue))
 
+#------------------------------------------------------------------------------#
+# a thread to handle incoming transmission
+def hostServer(conn, srcAddr, sharedDir, logQueue):
+    sSock = conn
+    request = sSock.recv(MAX_PACKET_SIZE).decode()
+    if len(request) == 0:
+        sSock.close()
+        return
+
+    # close this connection session
+    sSock.close()
+
+#------------------------------------------------------------------------------#
 # a function will test whther a address is valid and reachable (return bool)
 def pingAIPAddress(remoteIP):
     pingResponse = os.system("ping -c 1 {0}".format(remoteIP))
@@ -87,15 +122,16 @@ def checkFileName(filename):
         return False
     return True
 
+#------------------------------------------------------------------------------#
 # subroutine to return the result for find request
 # it will a list that contains the servers who has this file
-def toTrackFind(filename, trackingServer, trackingPort, logFile):
+def toTrackFind(filename, trackingServer, trackingPort, logQueue):
     res = []
     # TODO
     return res
 
 # subroutine to update current file list to the server
-def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logFile):
+def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
     updatedOK = False
 
     return updatedOK
@@ -103,20 +139,22 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logFile):
 
 # subroutine to download a specified file
 # it will return a bool that indicate whether the downloading is successful.
-def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logFile):
+def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
     serverListWithThisFile = toTrackFind(filename, trackingServer, trackingPort)
     fileOK = False
     # TODO
     return fileOK
 
 #subroutine to get the load of a specified peer server, it will return peer load
-def toPeerGetLoad(peerIP, peerPort, logFile):
+def toPeerGetLoad(peerIP, peerPort, logQueue):
     peerLoad = 0
     # TODO
     return peerIP
 
+#------------------------------------------------------------------------------#
 # the thread to monitor the command line's input
 def monitorCMD(sSock, localIP, localPort, trackingServer, trackingPort, logFile, sharedDir):
+    global logQueue
     while 1:
         sentence = input()
         if sentence[:4].lower() == "exit":
@@ -124,6 +162,7 @@ def monitorCMD(sSock, localIP, localPort, trackingServer, trackingPort, logFile,
             #an hence terminate the main program
             msg = "{0}:{1} Exit".format(localIP, localPort)
             logFile.write(str(datetime.now()) + ": {0}\n".format(msg))
+            logFile.flush()
             logFile.close()
             sSock.close()
             os.kill(os.getpid(),9)
@@ -138,7 +177,7 @@ cannot contain ';' or ':' symbols.")
                 continue
             # start to actually find this filename
             serverListWithThisFile = toTrackFind(filename, trackingServer,
-                trackingPort, logFile)
+                trackingPort, logQueue)
             print(serverListWithThisFile)
 
         elif sentence[:8].lower() == "download":
@@ -181,6 +220,13 @@ you can enter \"help\" anytime to get it.\n")
             print("Command cannot be recognized, try again. ")
             print("If you need help information, please enter \"help\".\n")
 
+#------------------------------------------------------------------------------#
+# a help thread to do log output
+def writeToLog(logFile, logQueue):
+    while True:
+        logFile.write(logQueue.get())
+        logFile.flush()
+    logFile.close()
 
 def parse_args():
     parser = ArgumentParser()
