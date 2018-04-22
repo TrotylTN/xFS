@@ -2,7 +2,7 @@
 # Team Member: Tiannan Zhou, Xuan Bi
 # Written in Python 3
 
-import sys, threading, os
+import sys, threading, os, math
 import hashlib
 from socket import *
 from datetime import datetime
@@ -10,6 +10,38 @@ from argparse import ArgumentParser
 from queue import Queue
 
 MAX_PACKET_SIZE = 1024
+HEADER_SIZE = 4
+LENGTH_SIZE = 2
+MAX_CONTECT_SIZE = MAX_PACKET_SIZE - HEADER_SIZE * 2 - LENGTH_SIZE
+
+def compressNumber4Bytes(number):
+    if number > 268435455 or number < 0:
+        raise ValueError("number to be compressed larger than 4 bytes or less \
+than 0")
+    st = str()
+    while number > 0:
+        st = chr(number % 128) + st
+        number //= 128
+    st = (HEADER_SIZE - len(st)) * '\x00' + st
+    return st.encode()
+
+def compressLength2Bytes(l):
+    if l > MAX_CONTECT_SIZE or l < 0:
+        raise ValueError("length greater than MAX_CONTECT_SIZE or less than 0")
+    st = str()
+    while l > 0:
+        st = chr(l % 128) + st
+        l //= 128
+    st = (LENGTH_SIZE - len(st)) * '\x00' + st
+    return st.encode()
+
+def decompressBytesNumber(bs):
+    st = bs.decode()
+    res = 0
+    for x in st:
+        res *= 128
+        res += ord(x)
+    return res
 
 # {0}: filename
 FIND_REQUEST = "FD{0}"
@@ -19,15 +51,37 @@ GETLOAD_REQUEST = "GL"
 UPDATELIST_REQUEST = "UD"
 
 INVALID_REPLY = "IV"
+# dowload reply data frame (all bytes):
+#   4 bytes: total packets;     (0~268435455)
+#   4 bytes: current packet #;  (0~268435455)
+#   2 bytes: this packet length (max 1014)
+#   1014 bytes: contents
+# filesize limit is about 250GB due to the limit of the protocol
+# 0/0/0 means invalid filename
+# 0/1/0 means file does not exist
+# 0/2/0 means unknown error, please see server side log
+# n/0/64 stands for the SHA-512
+# n/i/len for normal reply
+INVALID_DL_REPLY = compressNumber4Bytes(0) + compressNumber4Bytes(0) + compressLength2Bytes(0)
+NOEXIST_DL_REPLY = compressNumber4Bytes(0) + compressNumber4Bytes(1) + compressLength2Bytes(0)
+UNKNOWN_DL_REPLY = compressNumber4Bytes(0) + compressNumber4Bytes(2) + compressLength2Bytes(0)
 # {0}: total packets, {1}: # for this packet
-# 0;0 means file does not exist
-# n;0 stands for the
-DOWNLOAD_REPLY = "{0};{1};"
-# {0}: total packets, {1}: # for this packet
-UPDATELIST_REPLY = "{0};{1};"
+UPDATELIST_REPLY = "{0}{1}"
+ACK_REPLY = "\x06"
+NONACK_REPLY = "\x15"
 
 def fillPacket(s):
     return s + b" " * (MAX_PACKET_SIZE - len(s))
+
+# information
+ERROR_FD = ": Received Find request \"{0}\" from {1}:{2}, invalid request for \
+clients"
+INFO_DL = ": Received Download request \"{0}\" from {1}:{2}"
+INFO_DL_OK = ": File \"{0}\" SHA-256 and contents have been loaded into sending\
+ queue to {1}:{2}"
+ERROR_DL_NAME = ": Received invalid filename \"{0}\" from {1}:{2}"
+ERROR_DL_NO = ": No local file \"{0}\" requested from {1}:{2}"
+ERROR_UNKNOWN = ": Received unrecognized request \"{0}\" from {1}:{2}"
 
 thisServerLoad = 0
 logQueue = Queue()
@@ -98,13 +152,14 @@ you can enter \"help\" anytime to get it.\n")
     # start to listen incoming transmission
     while True:
         conn, srcAddr = sSock.accept()
-        serverThread = threading.Thread(target=hostServer, args=(conn, srcAddr,
-        sharedDir, logQueue))
+        srcIP, srcPort = srcAddr
+        serverThread = threading.Thread(target=hostServer, args=(conn, srcIP,
+            srcPort, sharedDir, logQueue))
         serverThread.start()
 
 #------------------------------------------------------------------------------#
 # a thread to handle incoming transmission
-def hostServer(conn, srcAddr, sharedDir, logQueue):
+def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
     sSock = conn
     global thisServerLoad
     xFSrequest = sSock.recv(MAX_PACKET_SIZE).decode().strip()
@@ -114,15 +169,68 @@ def hostServer(conn, srcAddr, sharedDir, logQueue):
     xFSreply = list()
     if xFSrequest[:2] == "FD":
         # a find filename request, this request cannot be replied from client
+        filename = xFSrequest[2:].strip()
         xFSreply.append(INVALID_REPLY.encode())
+        msg = str(datetime.now()) + ERROR_FD.format(filename, srcIP, srcPort)
+        logQueue.put(msg + '\n')
+        print(msg)
     elif xFSrequest[:2] == "DL":
         # a download request
-        # load + 1
+        filename = xFSrequest[2:].strip()
+        toDLfile = sharedDir + filename
+        msg = str(datetime.now()) + INFO_DL.format(toDLfile, srcIP, srcPort)
+        logQueue.put(msg + '\n')
+        print(msg)
+        if filename == "":
+            # invalid request
+            msg = str(datetime.now()) + ERROR_DL_NAME.format(filename, srcIP, srcPort)
+            logQueue.put(msg + '\n')
+            print(msg)
+            # added a reply for error
+            xFSreply.append(INVALID_DL_REPLY)
+        elif not os.path.isfile(toDLfile):
+            # file unreachable
+            msg = str(datetime.now()) + ERROR_DL_NO.format(toDLfile, srcIP, srcPort)
+            logQueue.put(msg + '\n')
+            print(msg)
+            # added a reply for error
+            xFSreply.append(NOEXIST_DL_REPLY)
+        else:
+            # file can be downloaded to the requester
+            # load + 1
+            thisServerLoad += 1
+            try:
+                filefd = open(toDLfile, 'rb')
+                filecontent = filefd.read()
+                filefd.close()
 
-        thisServerLoad += 1
-        # TODO
-        # back to original
-        thisServerLoad -= 1
+                total_packets = math.ceil(len(filecontent) / MAX_CONTECT_SIZE)
+                # start to seal packet zero, SHA-512
+                packet_header = compressNumber4Bytes(total_packets) + \
+                    compressNumber4Bytes(0) + compressLength2Bytes(64)
+                packet_content = hashSHA512Bytes(filecontent)
+                # total_packets/0/64: SHA-512 for verification
+                xFSreply.append(packet_header + packet_content)
+
+                for i in range(total_packets):
+                    this_content = filecontent[i * MAX_CONTECT_SIZE:
+                        (i + 1) * MAX_CONTECT_SIZE]
+                    this_header = compressNumber4Bytes(total_packets) + \
+                        compressNumber4Bytes(i + 1) + \
+                        compressLength2Bytes(len(this_content))
+                    xFSreply.append(this_header + this_content)
+                msg = str(datetime.now()) + INFO_DL_OK.format(toDLfile, srcIP, srcPort)
+                logQueue.put(msg + '\n')
+                print(msg)
+            except error as msg:
+                msg = str(datetime.now()) + ": " + msg
+                logQueue.put(msg + '\n')
+                print(msg)
+                # met error, clear the queue and fill it with UNKNOWN_DL_REPLY
+                xFSreply = list()
+                xFSreply.append(UNKNOWN_DL_REPLY)
+            # back to original
+            thisServerLoad -= 1
     elif xFSrequest[:2] == "GL":
         # a get load request
         xFSreply.append(str(thisServerLoad).encode())
@@ -130,9 +238,15 @@ def hostServer(conn, srcAddr, sharedDir, logQueue):
         # reply the file list to the requester
         # TODO
         pass
+    else:
+        msg = str(datetime.now()) + ERROR_UNKNOWN.format(xFSrequest, srcIP, srcPort)
+        logQueue.put(msg + '\n')
+        # added a NAK reply
+        xFSreply.append(NONACK_REPLY.encode())
+
     # send all packets in the reply queue
     for msg in xFSreply:
-        sSock.send(msg)
+        sSock.send(fillPacket(msg))
     # close this connection session
     sSock.close()
     return
@@ -155,8 +269,8 @@ def checkFileName(filename):
         return False
     return True
 
-def hashSHA256Hex(s):
-    return hashlib.sha256(s).hexdigest()
+def hashSHA512Bytes(s):
+    return hashlib.sha512(s).digest()
 
 #------------------------------------------------------------------------------#
 # subroutine to return the result for find request
