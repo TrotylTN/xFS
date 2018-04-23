@@ -268,13 +268,22 @@ def hashSHA512Bytes(s):
 # subroutine to return the result for find request
 # it will a list that contains the servers who has this file
 def toTrackFind(filename, trackingServer, trackingPort, logQueue):
+    msg = str(datetime.now()) + INFO_C_FD_INIT.format(filename, trackingServer,\
+        trackingPort)
+    logQueue.put(msg)
+    print(msg)
     res = []
     # TODO
     return res
 
 # subroutine to update current file list to the server
 def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
+    msg = str(datetime.now()) + INFO_C_UD_INIT.format(trackingServer, \
+        trackingPort, sharedDir)
+    logQueue.put(msg)
+    print(msg)
     updatedOK = False
+    # TODO
 
     return updatedOK
 
@@ -282,6 +291,10 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
 # subroutine to download a specified file
 # it will return a bool that indicate whether the downloading is successful.
 def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
+    msg = str(datetime.now()) + INFO_C_DL_INIT.format(filename)
+    logQueue.put(msg)
+    print(msg)
+
     serverListWithThisFile = toTrackFind(filename, trackingServer, trackingPort)
     fileOK = False
     if len(serverListWithThisFile) == 0:
@@ -369,8 +382,8 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
         saveFd = open(toSaveFile, 'wb')
         saveFd.write(filecontent)
         saveFd.close()
-        msg = str(datetime.now()) + INFO_C_DL.format(filename, downloadAddr, \
-            downloadPort)
+        msg = str(datetime.now()) + INFO_C_DL_SUCC.format(filename, \
+            downloadAddr, downloadPort)
         logQueue.put(msg)
         print(msg)
         fileOK = True
@@ -389,6 +402,10 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
 
 #subroutine to get the load of a specified peer server, it will return peer load
 def toPeerGetLoad(peerIP, peerPort, logQueue):
+    msg = str(datetime.now()) + INFO_C_GL_INIT.format(peerIP, peerPort)
+    logQueue.put(msg)
+    print(msg)
+
     peerLoad = 0
     try:
         cSock = socket(AF_INET, SOCK_STREAM)
