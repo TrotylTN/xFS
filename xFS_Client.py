@@ -2,97 +2,15 @@
 # Team Member: Tiannan Zhou, Xuan Bi
 # Written in Python 3
 
-import sys, threading, os, math
-import hashlib
+import sys, threading, os, math, hashlib
 from socket import *
 from datetime import datetime
 from argparse import ArgumentParser
 from queue import Queue
 
-MAX_PACKET_SIZE = 1024
-HEADER_SIZE = 4
-LENGTH_SIZE = 2
-MAX_CONTECT_SIZE = MAX_PACKET_SIZE - HEADER_SIZE * 2 - LENGTH_SIZE
-
-def compressNumber4Bytes(number):
-    if number > 268435455 or number < 0:
-        raise ValueError("number to be compressed larger than 4 bytes or less \
-than 0")
-    st = str()
-    while number > 0:
-        st = chr(number % 128) + st
-        number //= 128
-    st = (HEADER_SIZE - len(st)) * '\x00' + st
-    return st.encode()
-
-def compressLength2Bytes(l):
-    if l > MAX_CONTECT_SIZE or l < 0:
-        raise ValueError("length greater than MAX_CONTECT_SIZE or less than 0")
-    st = str()
-    while l > 0:
-        st = chr(l % 128) + st
-        l //= 128
-    st = (LENGTH_SIZE - len(st)) * '\x00' + st
-    return st.encode()
-
-def decompressBytesNumber(bs):
-    st = bs.decode()
-    res = 0
-    for x in st:
-        res *= 128
-        res += ord(x)
-    return res
-
-# {0}: filename
-FIND_REQUEST = "FD{0}"
-# {0}: filename
-DOWNLOAD_REQUEST = "DL{0}"
-GETLOAD_REQUEST = "GL"
-UPDATELIST_REQUEST = "UD"
-
-INVALID_REPLY = "IV"
-# dowload reply data frame (all bytes):
-#   4 bytes: total packets;     (0~268435455)
-#   4 bytes: current packet #;  (0~268435455)
-#   2 bytes: this packet length (max 1014)
-#   1014 bytes: contents
-# filesize limit is about 250GB due to the limit of the protocol
-# 0/0/0 means invalid filename
-# 0/1/0 means file does not exist
-# 0/2/0 means unknown error, please see server side log
-# n/0/64 stands for the SHA-512
-# n/i/len for normal reply
-INVALID_DL_REPLY = compressNumber4Bytes(0) + compressNumber4Bytes(0) + compressLength2Bytes(0)
-NOEXIST_DL_REPLY = compressNumber4Bytes(0) + compressNumber4Bytes(1) + compressLength2Bytes(0)
-UNKNOWN_DL_REPLY = compressNumber4Bytes(0) + compressNumber4Bytes(2) + compressLength2Bytes(0)
-ACK_REPLY = "\x06"
-NONACK_REPLY = "\x15"
-
-def fillPacket(s):
-    if len(s) > MAX_PACKET_SIZE:
-        raise ValueError("packet is longer than MAX_PACKET_SIZE")
-    return s + b" " * (MAX_PACKET_SIZE - len(s))
-
-# information for Find
-ERROR_FD = ": Received Find request \"{0}\" from {1}:{2}, invalid request for \
-clients"
-# information for Download
-INFO_DL = ": Received Download request \"{0}\" from {1}:{2}"
-INFO_DL_OK = ": File \"{0}\" SHA-512 and contents have been loaded into sending\
- queue to {1}:{2}"
-ERROR_DL_NAME = ": Received invalid filename \"{0}\" from {1}:{2}"
-ERROR_DL_NO = ": No local file \"{0}\" requested from {1}:{2}"
-ERROR_UNKNOWN = ": Received unrecognized request \"{0}\" from {1}:{2}"
-# information for GetLoad
-INFO_GL = ": Received GetLoad request from {0}:{1} and queued the reply"
-# information for UpdateList
-INFO_UD = ": Received Update List request from {0}:{1}"
-INFO_UD_OK = ": Directory \"{0}\" SHA-512 and lists have been loaded into sending\
- queue to {1}:{2}"
-# information for sending packets
-INFO_RE_INIT = ": Total {0} reply packets will be sent to {1}:{2}"
-INFO_RE_FINISH = ": Total {0} packets have been successfully sent to {1}:{2}"
-INFO_RE_EOS = ": Session with {0}:{1} has been closed"
+# import self defined lib
+from errorInfo import *
+from xFSProtocol import *
 
 thisServerLoad = 0
 logQueue = Queue()
@@ -216,6 +134,8 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
                 filefd.close()
 
                 total_packets = math.ceil(len(filecontent) / MAX_CONTECT_SIZE)
+                # make sure at least 1 packet for content will be sent
+                total_packets = max(1, total_packets)
                 # start to seal packet zero, SHA-512
                 packet_header = compressNumber4Bytes(total_packets) + \
                     compressNumber4Bytes(0) + compressLength2Bytes(64)
@@ -259,6 +179,8 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
         listcontent = ";".join(fileslist).encode()
         try:
             total_packets = math.ceil(len(listcontent) / MAX_CONTECT_SIZE)
+            # make sure at least 1 packet for content will be sent
+            total_packets = max(1, total_packets)
             # start to seal packet zero, SHA-512
             packet_header = compressNumber4Bytes(total_packets) + \
                 compressNumber4Bytes(0) + compressLength2Bytes(64)
@@ -294,9 +216,19 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
     logQueue.put(msg)
     print(msg)
     try:
-        for msg in xFSreply:
-            sSock.send(fillPacket(msg))
-        msg = str(datetime.now()) + INFO_RE_FINISH.format(len(xFSreply), srcIP, srcPort)
+        if len(xFSreply) > 1:
+            # For Download and UpdateList, send the SHA512 first
+            sSock.send(fillPacket(xFSreply[0]))
+            r = sSock.recv(MAX_PACKET_SIZE).decode().strip()
+            if r == ACK_REPLY:
+                # received ACK, send rest packets
+                del xFSreply[0]
+            else:
+                raise RuntimeError("Didn't receive ACK after sending SHA512")
+        for x in xFSreply:
+            sSock.send(fillPacket(x))
+        msg = str(datetime.now()) + INFO_RE_FINISH.format(len(xFSreply), \
+            srcIP, srcPort)
         logQueue.put(msg)
         print(msg)
     except error as msg:
@@ -351,7 +283,99 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
 def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
     serverListWithThisFile = toTrackFind(filename, trackingServer, trackingPort)
     fileOK = False
-    # TODO
+    if len(serverListWithThisFile) == 0:
+        # no host has this file
+        msg = str(datetime.now()) + ERROR_C_DL_NOFILE.format(filename)
+        logQueue.put(msg)
+        print(msg)
+        return False
+    # TODO: to find the best server
+    dowloadNode = serverListWithThisFile[0]
+    [downloadAddr, downloadPort] = dowloadNode.split(':')
+
+    try:
+        cSock = socket(AF_INET, SOCK_STREAM)
+    except error as msg:
+        cSock = None # Handle exception
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
+
+    try:
+        cSock.connect((downloadAddr, downloadPort))
+    except error as msg:
+        cSock = None # Handle exception
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
+
+    if cSock is None:
+        # If the socket cannot be opened, write into log and return False
+        msg = str(datetime.now()) + ERROR_SCT_INIT
+        logQueue.put(msg)
+        print(msg)
+        return False
+
+    # cSock successfully initialized, start to connect to the server
+    dlRequest = DOWNLOAD_REQUEST.format(filename)
+
+    # wait for the first response packet
+    rdata = cSock.recv(MAX_PACKET_SIZE)
+    total_packets, num_packet, msg_length, datacontent = parseDataPacket(rdata)
+    if total_packets == 0:
+        # received an error message
+        # TODO log
+        if num_packet == 0:
+            # invalid filename
+            pass
+        elif num_packet == 1:
+            # file is not existent on this host
+            pass
+        elif num_packet == 2:
+            # unknown error on the server side
+            pass
+        # no need to send ACK, close this session
+        cSock.close()
+        msg = str(datetime.now()) + INFO_RE_EOS.format(downloadAddr, downloadPort)
+        logQueue.put(msg)
+        print(msg)
+        return False
+    # prepare to receive the data content
+    if num_packet == 0 and len(datacontent) == 64:
+        origSHA512 = datacontent
+    else:
+        raise ValueError("SHA512's number & length does not match")
+    contentCache = [None] * (total_packets + 1)
+    # send ACK to the server
+    cSock.send(fillPacket(ACK_REPLY.encode()))
+    # cache all the contents regardless of receiving order
+    # it can be optimized
+    for i in range(total_packets):
+        rdata = cSock.recv(MAX_PACKET_SIZE)
+        tot, num_packet, msg_length, datacontent = parseDataPacket(rdata)
+        contentCache[num_packet] = datacontent
+    filecontent = bytes()
+    for i in range(1, total_packets + 1):
+        filecontent += contentCache[i]
+    if hashSHA512Bytes(filecontent) == origSHA512:
+        # this file is correctly downloaded
+        # TODO: save the content into file
+        msg = str(datetime.now()) + INFO_C_DL.format(filename, downloadAddr, \
+            downloadPort)
+        logQueue.put(msg)
+        print(msg)
+        fileOK = True
+    else:
+        # this file is not the original file
+        msg = str(datetime.now()) + ERROR_C_DL_FILEBROKEN.format(filename, \
+            downloadAddr, downloadPort)
+        logQueue.put(msg)
+        print(msg)
+        fileOK = False
+    cSock.close()
+    msg = str(datetime.now()) + INFO_RE_EOS.format(downloadAddr, downloadPort)
+    logQueue.put(msg)
+    print(msg)
     return fileOK
 
 #subroutine to get the load of a specified peer server, it will return peer load
