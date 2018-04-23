@@ -19,6 +19,7 @@ def main():
     # main function
     (trackingServer, trackingPort, localPort, sharedDir) = parse_args()
     localIP = gethostbyname(gethostname())
+    sharedDir = sharedDir.strip("/ ") + '/'
 
     # open a log file
     logFile = open("{0}-{1}.log".format(localIP, localPort), 'a')
@@ -359,7 +360,11 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
         filecontent += contentCache[i]
     if hashSHA512Bytes(filecontent) == origSHA512:
         # this file is correctly downloaded
-        # TODO: save the content into file
+        # save the content into file
+        toSaveFile = sharedDir + filename
+        saveFd = open(toSaveFile, 'wb')
+        saveFd.write(filecontent)
+        saveFd.close()
         msg = str(datetime.now()) + INFO_C_DL.format(filename, downloadAddr, \
             downloadPort)
         logQueue.put(msg)
