@@ -69,20 +69,30 @@ ACK_REPLY = "\x06"
 NONACK_REPLY = "\x15"
 
 def fillPacket(s):
+    if len(s) > MAX_PACKET_SIZE:
+        raise ValueError("packet is longer than MAX_PACKET_SIZE")
     return s + b" " * (MAX_PACKET_SIZE - len(s))
 
-# information
+# information for Find
 ERROR_FD = ": Received Find request \"{0}\" from {1}:{2}, invalid request for \
 clients"
+# information for Download
 INFO_DL = ": Received Download request \"{0}\" from {1}:{2}"
 INFO_DL_OK = ": File \"{0}\" SHA-512 and contents have been loaded into sending\
  queue to {1}:{2}"
 ERROR_DL_NAME = ": Received invalid filename \"{0}\" from {1}:{2}"
 ERROR_DL_NO = ": No local file \"{0}\" requested from {1}:{2}"
 ERROR_UNKNOWN = ": Received unrecognized request \"{0}\" from {1}:{2}"
+# information for GetLoad
+INFO_GL = ": Received GetLoad request from {0}:{1} and queued the reply"
+# information for UpdateList
+INFO_UD = ": Received Update List request from {0}:{1}"
 INFO_UD_OK = ": Directory \"{0}\" SHA-512 and lists have been loaded into sending\
  queue to {1}:{2}"
-
+# information for sending packets
+INFO_RE_INIT = ": Total {0} reply packets will be sent to {1}:{2}"
+INFO_RE_FINISH = ": Total {0} packets have been successfully sent to {1}:{2}"
+INFO_RE_EOS = ": Session with {0}:{1} has been closed"
 
 thisServerLoad = 0
 logQueue = Queue()
@@ -173,26 +183,26 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
         filename = xFSrequest[2:].strip()
         xFSreply.append(INVALID_REPLY.encode())
         msg = str(datetime.now()) + ERROR_FD.format(filename, srcIP, srcPort)
-        logQueue.put(msg + '\n')
+        logQueue.put(msg)
         print(msg)
     elif xFSrequest[:2] == "DL":
         # a download request
         filename = xFSrequest[2:].strip()
         toDLfile = sharedDir + filename
         msg = str(datetime.now()) + INFO_DL.format(toDLfile, srcIP, srcPort)
-        logQueue.put(msg + '\n')
+        logQueue.put(msg)
         print(msg)
         if filename == "":
             # invalid request
             msg = str(datetime.now()) + ERROR_DL_NAME.format(filename, srcIP, srcPort)
-            logQueue.put(msg + '\n')
+            logQueue.put(msg)
             print(msg)
             # added a reply for error
             xFSreply.append(INVALID_DL_REPLY)
         elif not os.path.isfile(toDLfile):
             # file unreachable
             msg = str(datetime.now()) + ERROR_DL_NO.format(toDLfile, srcIP, srcPort)
-            logQueue.put(msg + '\n')
+            logQueue.put(msg)
             print(msg)
             # added a reply for error
             xFSreply.append(NOEXIST_DL_REPLY)
@@ -221,11 +231,11 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
                         compressLength2Bytes(len(this_content))
                     xFSreply.append(this_header + this_content)
                 msg = str(datetime.now()) + INFO_DL_OK.format(toDLfile, srcIP, srcPort)
-                logQueue.put(msg + '\n')
+                logQueue.put(msg)
                 print(msg)
             except error as msg:
                 msg = str(datetime.now()) + ": " + msg
-                logQueue.put(msg + '\n')
+                logQueue.put(msg)
                 print(msg)
                 # met error, clear the queue and fill it with UNKNOWN_DL_REPLY
                 xFSreply = list()
@@ -234,11 +244,15 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
             thisServerLoad -= 1
     elif xFSrequest[:2] == "GL":
         # a get load request
-        # TODO log
+        msg = str(datetime.now()) + INFO_GL.format(srcIP, srcPort)
+        logQueue.put(msg)
+        print(msg)
         xFSreply.append(str(thisServerLoad).encode())
     elif xFSrequest[:2] == "UD":
         # reply the file list to the requester
-        # TODO log
+        msg = str(datetime.now()) + INFO_UD.format(srcIP, srcPort)
+        logQueue.put(msg)
+        print(msg)
         fileslist = [f for f in os.listdir(sharedDir) \
             if os.path.isfile(os.path.join(sharedDir, f))]
         # encoding the list to binary
@@ -260,27 +274,40 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
                     compressLength2Bytes(len(this_content))
                 xFSreply.append(this_header + this_content)
             msg = str(datetime.now()) + INFO_UD_OK.format(sharedDir, srcIP, srcPort)
-            logQueue.put(msg + '\n')
+            logQueue.put(msg)
             print(msg)
         except error as msg:
             msg = str(datetime.now()) + ": " + msg
-            logQueue.put(msg + '\n')
+            logQueue.put(msg)
             print(msg)
             # met error, clear the queue and fill it with UNKNOWN_DL_REPLY
             xFSreply = list()
             xFSreply.append(UNKNOWN_DL_REPLY)
     else:
         msg = str(datetime.now()) + ERROR_UNKNOWN.format(xFSrequest, srcIP, srcPort)
-        logQueue.put(msg + '\n')
+        logQueue.put(msg)
         # added a NAK reply
         xFSreply.append(NONACK_REPLY.encode())
 
-    # TODO log
     # send all packets in the reply queue
-    for msg in xFSreply:
-        sSock.send(fillPacket(msg))
+    msg = str(datetime.now()) + INFO_RE_INIT.format(len(xFSreply), srcIP, srcPort)
+    logQueue.put(msg)
+    print(msg)
+    try:
+        for msg in xFSreply:
+            sSock.send(fillPacket(msg))
+        msg = str(datetime.now()) + INFO_RE_FINISH.format(len(xFSreply), srcIP, srcPort)
+        logQueue.put(msg)
+        print(msg)
+    except error as msg:
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
     # close this connection session
     sSock.close()
+    msg = str(datetime.now()) + INFO_RE_EOS.format(srcIP, srcPort)
+    logQueue.put(msg)
+    print(msg)
     return
 
 #------------------------------------------------------------------------------#
@@ -406,7 +433,7 @@ you can enter \"help\" anytime to get it.\n")
 # a help thread to do log output
 def writeToLog(logFile, logQueue):
     while True:
-        logFile.write(logQueue.get())
+        logFile.write(logQueue.get() + '\n')
         logFile.flush()
     logFile.close()
 
