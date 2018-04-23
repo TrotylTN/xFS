@@ -24,5 +24,6 @@ INFO_RE_EOS = ": Session with {0}:{1} has been closed"
 
 # client-side information
 ERROR_C_DL_NOFILE = ": Under current record, no node has file \"{0}\""
+INFO_C_DL_FDSV = ": Found node {0}:{1} has file \"{2}\", start to download"
 INFO_C_DL = ": File \"{0}\" from {1}:{2} downloaded successfully"
 ERROR_C_DL_FILEBROKEN = ": File \"{0}\" downloaded from {1}:{2} is broken"

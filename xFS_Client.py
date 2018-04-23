@@ -293,6 +293,10 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
     # TODO: to find the best server
     dowloadNode = serverListWithThisFile[0]
     [downloadAddr, downloadPort] = dowloadNode.split(':')
+    msg = str(datetime.now()) + INFO_C_DL_FDSV.format(downloadAddr, \
+        downloadPort, filename)
+    logQueue.put(msg)
+    print(msg)
 
     try:
         cSock = socket(AF_INET, SOCK_STREAM)
@@ -386,8 +390,53 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
 #subroutine to get the load of a specified peer server, it will return peer load
 def toPeerGetLoad(peerIP, peerPort, logQueue):
     peerLoad = 0
-    # TODO
-    return peerIP
+    try:
+        cSock = socket(AF_INET, SOCK_STREAM)
+    except error as msg:
+        cSock = None # Handle exception
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
+
+    try:
+        cSock.connect((peerIP, peerPort))
+    except error as msg:
+        cSock = None # Handle exception
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
+
+    if cSock is None:
+        # If the socket cannot be opened, write into log and return False
+        msg = str(datetime.now()) + ERROR_SCT_INIT
+        logQueue.put(msg)
+        print(msg)
+        # return error code -1, stands for not getting the response
+        return -1
+
+    # cSock successfully initialized, start to connect to the server
+    glRequest = GETLOAD_REQUEST
+    try:
+        cSock.send(fillPacket(glRequest.encode()))
+        rdata = cSock.recv(MAX_PACKET_SIZE).decode().strip()
+        peerLoad = int(rdata)
+    except error as msg:
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
+        # closing the session
+        cSock.close()
+        msg = str(datetime.now()) + INFO_RE_EOS.format(peerIP, peerPort)
+        logQueue.put(msg)
+        # met some unknown error, print the error and return
+        return -1
+
+    # closing the session
+    cSock.close()
+    msg = str(datetime.now()) + INFO_RE_EOS.format(peerIP, peerPort)
+    logQueue.put(msg)
+    print(msg)
+    return peerLoad
 
 #------------------------------------------------------------------------------#
 # the thread to monitor the command line's input
