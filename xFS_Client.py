@@ -175,7 +175,8 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
         logQueue.put(msg)
         print(msg)
         fileslist = [f for f in os.listdir(sharedDir) \
-            if os.path.isfile(os.path.join(sharedDir, f))]
+            if os.path.isfile(os.path.join(sharedDir, f)) and \
+            checkFileName(os.path.join(sharedDir, f))]
         # encoding the list to binary
         listcontent = ";".join(fileslist).encode()
         try:
@@ -289,20 +290,20 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
 
 
 # subroutine to download a specified file
-# it will return a bool that indicate whether the downloading is successful.
+# it will return an int that indicate whether the downloading is successful.
 def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
     msg = str(datetime.now()) + INFO_C_DL_INIT.format(filename)
     logQueue.put(msg)
     print(msg)
 
     serverListWithThisFile = toTrackFind(filename, trackingServer, trackingPort)
-    fileOK = False
     if len(serverListWithThisFile) == 0:
         # no host has this file
         msg = str(datetime.now()) + ERROR_C_DL_NOFILE.format(filename)
         logQueue.put(msg)
         print(msg)
-        return False
+        # -1 stands for file error
+        return -1
     # TODO: to find the best server
     dowloadNode = serverListWithThisFile[0]
     [downloadAddr, downloadPort] = dowloadNode.split(':')
@@ -332,7 +333,8 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
         msg = str(datetime.now()) + ERROR_SCT_INIT
         logQueue.put(msg)
         print(msg)
-        return False
+        # socket error
+        return -2
 
     # cSock successfully initialized, start to connect to the server
     dlRequest = DOWNLOAD_REQUEST.format(filename)
@@ -357,7 +359,8 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
         msg = str(datetime.now()) + INFO_RE_EOS.format(downloadAddr, downloadPort)
         logQueue.put(msg)
         print(msg)
-        return False
+        # -1 stands for file error
+        return -1
     # prepare to receive the data content
     if num_packet == 0 and len(datacontent) == 64:
         origSHA512 = datacontent
@@ -386,14 +389,15 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
             downloadAddr, downloadPort)
         logQueue.put(msg)
         print(msg)
-        fileOK = True
+        fileOK = 0
     else:
         # this file is not the original file
         msg = str(datetime.now()) + ERROR_C_DL_FILEBROKEN.format(filename, \
             downloadAddr, downloadPort)
         logQueue.put(msg)
         print(msg)
-        fileOK = False
+        # 1 stands for file broken
+        fileOK = 1
     cSock.close()
     msg = str(datetime.now()) + INFO_RE_EOS.format(downloadAddr, downloadPort)
     logQueue.put(msg)
@@ -488,7 +492,34 @@ cannot contain ';' or ':' symbols.")
             # download {filename}
             filename = sentence[8:].strip()
             # check whether the filename is valid
-            # TODO
+            if not checkFileName(filename):
+                print ("Invalid file name, file name must be longer than 0 and \
+cannot contain ';' or ':' symbols.")
+                continue
+            rtnStatus = toPeerDownload(filename, trackingServer, trackingPort, \
+                sharedDir, logQueue)
+            tryTimeDownload = 1
+            if rtnStatus == 0:
+                # everything is good
+                pass
+            elif rtnStatus == -1 or rtnStatus == -2:
+                # file error or socket broken
+                # please see log for details
+                pass
+            elif rtnStatus == 1:
+                # file broken, try to re-download
+                while tryTimeDownload <= 3 and rtnStatus == 1:
+                    msg = str(datetime.now()) + INFO_C_DL_AOTRY.format(filename)
+                    logQueue.put(msg)
+                    print(msg)
+                    tryTimeDownload += 1
+                    rtnStatus = toPeerDownload(filename, trackingServer, \
+                        trackingPort, sharedDir, logQueue)
+                    if rtnStatus == -1 or rtnStatus == -2:
+                        break
+            else:
+                # unexpected return status, raise an error
+                raise RuntimeError("toPeerDownload returned unknown status")
 
         elif sentence[:7].lower() == "getload":
             # getload {server} {port}
