@@ -20,7 +20,6 @@ def main():
     # main function
     (trackingServer, trackingPort, localPort, sharedDir) = parse_args()
     localIP = gethostbyname(gethostname())
-    sharedDir = sharedDir.strip("/ ") + '/'
 
     # open a log file
     logFile = open("{0}-{1}.log".format(localIP, localPort), 'a')
@@ -108,7 +107,7 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
     elif xFSrequest[:2] == "DL":
         # a download request
         filename = xFSrequest[2:].strip()
-        toDLfile = sharedDir + filename
+        toDLfile = os.path.join(sharedDir, filename)
         msg = str(datetime.now()) + INFO_DL.format(toDLfile, srcIP, srcPort)
         logQueue.put(msg)
         print(msg)
@@ -582,7 +581,7 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
     if hashSHA512Bytes(filecontent) == origSHA512:
         # this file is correctly downloaded
         # save the content into file
-        toSaveFile = sharedDir + filename
+        toSaveFile = os.path.join(sharedDir,filename)
         saveFd = open(toSaveFile, 'wb')
         saveFd.write(filecontent)
         saveFd.close()
