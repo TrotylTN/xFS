@@ -218,6 +218,7 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
     else:
         msg = str(datetime.now()) + ERROR_UNKNOWN.format(xFSrequest, srcIP, srcPort)
         logQueue.put(msg)
+        print(msg)
         # added a NAK reply
         xFSreply.append(NONACK_REPLY.encode())
 

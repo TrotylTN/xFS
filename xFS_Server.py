@@ -117,6 +117,107 @@ def main():
         # serverThread.start()
 
 
+def trackingServerHost(conn, clientIP, clientPort):
+    sSock = conn
+    global connectedNodes
+    global fileTable
+    global linkQueue
+    global logQueue
+    addrport = "{0}:{1}".format(clientIP, clientPort)
+    xFSrequest = sSock.recv(MAX_PACKET_SIZE).decode().strip()
+    if len(xFSrequest) == 0:
+        sSock.close()
+        return
+    # added the new client into client list
+    if not addrport in connectedNodes:
+        connectedNodes.append(addrport)
+        # clear the file list
+        fileTable[connectedNodes] = []
+        linkQueue.append(copy.copy(connectedNodes))
+        msg = str(datetime.now()) + INFO_SVR_NEWNODE.format(clientIP, clientPort)
+        logQueue.put(msg)
+        print(msg)
+
+    if xFSrequest[:2] == "FD":
+        # Find request
+        hostsHaveFile = list()
+        filename = xFSrequest[2:].strip()
+        for c in connectedNodes:
+            if filename in fileTable[c]:
+                hostsHaveFile.append(c)
+        # # OPTIMIZE: can test the host having the file
+        xFSreply = []
+        listcontent = ";".join(fileslist).encode()
+        try:
+            total_packets = math.ceil(len(listcontent) / MAX_CONTECT_SIZE)
+            # make sure at least 1 packet for content will be sent
+            total_packets = max(1, total_packets)
+            # start to seal packet zero, SHA-512
+            packet_header = compressNumber4Bytes(total_packets) + \
+                compressNumber4Bytes(0) + compressLength2Bytes(64)
+            packet_content = hashSHA512Bytes(listcontent)
+            # total_packets/0/64: SHA-512 for verification
+            xFSreply.append(packet_header + packet_content)
+
+            for i in range(total_packets):
+                this_content = listcontent[i * MAX_CONTECT_SIZE:
+                    (i + 1) * MAX_CONTECT_SIZE]
+                this_header = compressNumber4Bytes(total_packets) + \
+                    compressNumber4Bytes(i + 1) + \
+                    compressLength2Bytes(len(this_content))
+                xFSreply.append(this_header + this_content)
+            msg = str(datetime.now()) + INFO_SVR_FD_OK.format(filename, clientIP, \
+                clientPort)
+            logQueue.put(msg)
+            print(msg)
+        except error as msg:
+            msg = str(datetime.now()) + ": " + str(msg)
+            logQueue.put(msg)
+            print(msg)
+            # met error, clear the queue and fill it with UNKNOWN_DL_REPLY
+            xFSreply = list()
+            xFSreply.append(UNKNOWN_DL_REPLY)
+        try:
+            if len(xFSreply) > 1:
+                # For Download and UpdateList, send the SHA512 first
+                sSock.send(fillPacket(xFSreply[0]))
+                r = sSock.recv(MAX_PACKET_SIZE).decode().strip()
+                if r == ACK_REPLY:
+                    # received ACK, send rest packets
+                    del xFSreply[0]
+                else:
+                    raise RuntimeError("Didn't receive ACK after sending SHA512")
+            for x in xFSreply:
+                sSock.send(fillPacket(x))
+            msg = str(datetime.now()) + INFO_RE_FINISH.format(len(xFSreply), \
+                clientIP, clientPort)
+            logQueue.put(msg)
+            print(msg)
+        except error as msg:
+            msg = str(datetime.now()) + ": " + str(msg)
+            logQueue.put(msg)
+            print(msg)
+
+
+    elif xFSrequest[:2] == "UD":
+        # update
+        pass
+    else:
+        # unrecognized request
+        msg = str(datetime.now()) + ERROR_UNKNOWN.format(xFSrequest, clientIP, clientPort)
+        logQueue.put(msg)
+        print(msg)
+        # added a NAK reply
+        sSock.send(fillPacket(NONACK_REPLY.encode()))
+    # close this connection session
+    sSock.close()
+    msg = str(datetime.now()) + INFO_RE_EOS.format(clientIP, clientPort)
+    logQueue.put(msg)
+    print(msg)
+    return
+
+
+
 # a multi-thread function to inform clients the server has been back
 def informClientsIAmBack(clientIP, clientPort, threadRes):
     clientPort = int(clientPort)
