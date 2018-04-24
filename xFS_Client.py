@@ -20,6 +20,9 @@ def main():
     # main function
     (trackingServer, trackingPort, localPort, sharedDir) = parse_args()
     localIP = gethostbyname(gethostname())
+    if not os.path.isdir(sharedDir):
+        print("Shared directory specified is invalid")
+        exit()
 
     # open a log file
     logFile = open("{0}-{1}.log".format(localIP, localPort), 'a')
