@@ -25,7 +25,12 @@ def main():
         exit()
 
     # open a log file
-    logFile = open("{0}-{1}.log".format(localIP, localPort), 'a')
+    try:
+        os.makedirs("./log")
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+    logFile = open("./log/{0}-{1}.log".format(localIP, localPort), 'a')
     logFile.write(str(datetime.now()) + ": Client {0}:{1} starts.\n".format(localIP, localPort))
     global thisServerLoad
     thisServerLoad = 0

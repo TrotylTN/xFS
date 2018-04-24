@@ -24,7 +24,12 @@ def main():
     localPort = parse_args()
     localIP = gethostbyname(gethostname())
     # open a log file
-    logFile = open("{0}-{1}-tracking.log".format(localIP, localPort), 'a')
+    try:
+        os.makedirs("./log")
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+    logFile = open("./log/{0}-{1}-tracking.log".format(localIP, localPort), 'a')
     logFile.write(str(datetime.now()) + ": Tracking Server {0}:{1} starts.\n"
         .format(localIP, localPort))
     # global
@@ -241,6 +246,7 @@ def trackingServerHost(conn, clientIP, clientPort):
             msg = str(datetime.now()) + INFO_SVR_UP_OK.format(clientIP, clientPort)
             logQueue.put(msg)
             print(msg)
+            print(filelist)
         else:
             msg = str(datetime.now()) + ": SHA512 does not match for Update's result"
             logQueue.put(msg)
