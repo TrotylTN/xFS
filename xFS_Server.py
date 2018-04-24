@@ -112,9 +112,9 @@ def main():
     while True:
         conn, srcAddr = sSock.accept()
         srcIP, srcPort = srcAddr
-        # TODO:
-        # serverThread = threading.Thread()
-        # serverThread.start()
+        serverThread = threading.Thread(target=trackingServerHost, args=(conn, \
+            srcIP, srcPort))
+        serverThread.start()
 
 
 def trackingServerHost(conn, clientIP, clientPort):
@@ -140,14 +140,18 @@ def trackingServerHost(conn, clientIP, clientPort):
 
     if xFSrequest[:2] == "FD":
         # Find request
-        hostsHaveFile = list()
         filename = xFSrequest[2:].strip()
+        msg = str(datetime.now()) + INFO_SVR_FD_INIT.format(filename, clientIP,\
+            clientPort)
+        logQueue.put(msg)
+        print(msg)
+        hostsHaveFile = list()
         for c in connectedNodes:
             if filename in fileTable[c]:
                 hostsHaveFile.append(c)
-        # # OPTIMIZE: can test the host having the file
+        # # OPTIMIZE: can test the host having the file, or do this on client side
         xFSreply = []
-        listcontent = ";".join(fileslist).encode()
+        listcontent = ";".join(hostsHaveFile).encode()
         try:
             total_packets = math.ceil(len(listcontent) / MAX_CONTECT_SIZE)
             # make sure at least 1 packet for content will be sent
@@ -198,10 +202,49 @@ def trackingServerHost(conn, clientIP, clientPort):
             logQueue.put(msg)
             print(msg)
 
-
     elif xFSrequest[:2] == "UD":
         # update
-        pass
+        msg = str(datetime.now()) + INFO_SVR_UP_INIT.format(clientIP, clientPort)
+        logQueue.put(msg)
+        print(msg)
+        # send ACK back to client, let it continue
+        sSock.send(fillPacket(ACK_REPLY.encode()))
+        try:
+            rdata = sSock.recv(MAX_PACKET_SIZE)
+            total_packets, num_packet, msg_length, datacontent = parseDataPacket(rdata)
+            # do error checking, if total_packets is zero, server side met error
+            if total_packets == 0:
+                raise ValueError("unknown error raised on server side")
+        except error as msg:
+            msg = str(datetime.now()) + ": " + str(msg)
+            logQueue.put(msg)
+            print(msg)
+        if num_packet == 0 and len(datacontent) == 64:
+            origSHA512 = datacontent
+        else:
+            raise ValueError("SHA512's number & length does not match")
+        contentCache = [None] * (total_packets + 1)
+        # send ACK to the server
+        cSock.send(fillPacket(ACK_REPLY.encode()))
+        # cache all the contents regardless of receiving order
+        # it can be optimized
+        for i in range(total_packets):
+            rdata = cSock.recv(MAX_PACKET_SIZE)
+            tot, num_packet, msg_length, datacontent = parseDataPacket(rdata)
+            contentCache[num_packet] = datacontent
+        filecontent = bytes()
+        for i in range(1, total_packets + 1):
+            filecontent += contentCache[i]
+        if hashSHA512Bytes(filecontent) == origSHA512:
+            filelist = filecontent.decode().split(";")
+            fileTable[addrport] = copy.copy(filelist)
+            msg = str(datetime.now()) + INFO_SVR_UP_OK.format(clientIP, clientPort)
+            logQueue.put(msg)
+            print(msg)
+        else:
+            msg = str(datetime.now()) + ": SHA512 does not match for Update's result"
+            logQueue.put(msg)
+            print(msg)
     else:
         # unrecognized request
         msg = str(datetime.now()) + ERROR_UNKNOWN.format(xFSrequest, clientIP, clientPort)
