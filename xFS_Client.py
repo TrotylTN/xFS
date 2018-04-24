@@ -623,6 +623,7 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
 
 #subroutine to get the load of a specified peer server, it will return peer load
 def toPeerGetLoad(peerIP, peerPort, logQueue):
+    peerPort = int(peerPort)
     msg = str(datetime.now()) + INFO_C_GL_INIT.format(peerIP, peerPort)
     logQueue.put(msg)
     print(msg)

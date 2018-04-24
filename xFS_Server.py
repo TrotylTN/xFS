@@ -367,7 +367,7 @@ def informClientsIAmBack(clientIP, clientPort, threadRes):
 
     # close the session
     cSock.close()
-    msg = str(datetime.now()) + INFO_RE_EOS.format(downloadAddr, downloadPort)
+    msg = str(datetime.now()) + INFO_RE_EOS.format(clientIP, clientPort)
     logQueue.put(msg)
     print(msg)
     return

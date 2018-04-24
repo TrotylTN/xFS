@@ -36,7 +36,7 @@ INFO_C_FD_FINISH = ": Received response for Find from {0}:{1}"
 
 INFO_C_GL_INIT = ": Starts to send GetLoad request to {0}:{1}"
 ERROR_C_GL_UNRE = ": Peer Node {0} is not reachable"
-INFO_C_GL_RESP = ": Peer Node {0}:{1}'s current load is {2}'"
+INFO_C_GL_RESP = ": Peer Node {0}:{1}'s current load is {2}"
 
 INFO_C_UD_INIT = ": Starts to update list to {0}:{1} for directory \"{2}\""
 
