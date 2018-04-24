@@ -475,7 +475,7 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
     msg = str(datetime.now()) + INFO_C_DL_INIT.format(filename)
     logQueue.put(msg)
     print(msg)
-
+    global serverIsUp
     if (not serverIsUp):
         # server is down, cannot access Find request
         msg = str(datetime.now()) + ERROR_SVR_DOWN.format( \
