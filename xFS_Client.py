@@ -299,6 +299,9 @@ def toTrackFind(filename, trackingServer, trackingPort, logQueue):
         cSock.send(fillPacket(findRequest.encode()))
         rdata = cSock.recv(MAX_PACKET_SIZE)
         total_packets, num_packet, msg_length, datacontent = parseDataPacket(rdata)
+        # do error checking, if total_packets is zero, server side met error
+        if total_packets == 0:
+            raise ValueError("unknown error raised on server side")
     except error as msg:
         msg = str(datetime.now()) + ": " + msg
         logQueue.put(msg)
@@ -435,6 +438,7 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
                 del xFSreply[0]
             else:
                 raise RuntimeError("Didn't receive ACK after sending SHA512")
+        # if it's error reply, directly sending this
         for x in xFSreply:
             cSock.send(fillPacket(x))
         msg = str(datetime.now()) + INFO_RE_FINISH.format(len(xFSreply), \
@@ -520,16 +524,18 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
         return -2
     if total_packets == 0:
         # received an error message
-        # TODO log
         if num_packet == 0:
             # invalid filename
-            pass
+            msg = ": Invalid filename error has been raised on server side"
         elif num_packet == 1:
             # file is not existent on this host
-            pass
+            msg = ": File non-existent error has been raised on server side"
         elif num_packet == 2:
             # unknown error on the server side
-            pass
+            msg = ": Unknown error has been raised on server side"
+        msg = str(datetime.now()) + msg
+        logQueue.put(msg)
+        print(msg)
         # no need to send ACK, close this session
         cSock.close()
         msg = str(datetime.now()) + INFO_RE_EOS.format(downloadAddr, downloadPort)
