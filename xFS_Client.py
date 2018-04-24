@@ -277,7 +277,7 @@ def toTrackFind(filename, trackingServer, trackingPort, logQueue):
         print(msg)
 
     try:
-        cSock.settimeout(10)
+        cSock.settimeout(5)
         cSock.connect((trackingServer, trackingPort))
         cSock.settimeout(None)
     except error as msg:
@@ -362,7 +362,7 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
         print(msg)
 
     try:
-        cSock.settimeout(10)
+        cSock.settimeout(5)
         cSock.connect((trackingServer, trackingPort))
         cSock.settimeout(None)
     except error as msg:
@@ -506,7 +506,7 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
         print(msg)
 
     try:
-        cSock.settimeout(10)
+        cSock.settimeout(5)
         cSock.connect((downloadAddr, downloadPort))
         cSock.settimeout(None)
     except error as msg:
@@ -616,7 +616,7 @@ def toPeerGetLoad(peerIP, peerPort, logQueue):
         print(msg)
 
     try:
-        cSock.settimeout(10)
+        cSock.settimeout(5)
         cSock.connect((peerIP, peerPort))
         cSock.settimeout(None)
     except error as msg:
