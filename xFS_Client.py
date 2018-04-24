@@ -236,6 +236,7 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
     logQueue.put(msg)
     print(msg)
     try:
+        deleted_one = 0
         if len(xFSreply) > 1:
             # For Download and UpdateList, send the SHA512 first
             sSock.send(fillPacket(xFSreply[0]))
@@ -243,11 +244,12 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
             if r == ACK_REPLY:
                 # received ACK, send rest packets
                 del xFSreply[0]
+                deleted_one = 1
             else:
                 raise RuntimeError("Didn't receive ACK after sending SHA512")
         for x in xFSreply:
             sSock.send(fillPacket(x))
-        msg = str(datetime.now()) + INFO_RE_FINISH.format(len(xFSreply), \
+        msg = str(datetime.now()) + INFO_RE_FINISH.format(len(xFSreply) + deleted_one, \
             srcIP, srcPort)
         logQueue.put(msg)
         print(msg)
@@ -401,7 +403,7 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
     try:
         cSock.send(fillPacket(UPDATELIST_REQUEST.format(localIP,localPort).encode()))
         # wait for an ACK to continue sending packets
-        rdata = cSock.recv(MAX_PACKET_SIZE).decode()
+        rdata = cSock.recv(MAX_PACKET_SIZE).decode().strip()
         if (rdata != ACK_REPLY):
             raise RuntimeError("received unrecognized response for Update")
     except error as msg:
@@ -451,6 +453,7 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
     logQueue.put(msg)
     print(msg)
     try:
+        deleted_one = 0
         if len(xFSreply) > 1:
             # For UpdateList, send the SHA512 first
             cSock.send(fillPacket(xFSreply[0]))
@@ -458,12 +461,13 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
             if r == ACK_REPLY:
                 # received ACK, send rest packets
                 del xFSreply[0]
+                deleted_one = 1
             else:
                 raise RuntimeError("Didn't receive ACK after sending SHA512")
         # if it's error reply, directly sending this
         for x in xFSreply:
             cSock.send(fillPacket(x))
-        msg = str(datetime.now()) + INFO_RE_FINISH.format(len(xFSreply), \
+        msg = str(datetime.now()) + INFO_RE_FINISH.format(len(xFSreply) + deleted_one, \
             trackingServer, trackingPort)
         logQueue.put(msg)
         print(msg)

@@ -1,5 +1,7 @@
 # constants and methods to help build the protocol
 
+import hashlib
+
 MAX_PACKET_SIZE = 1024
 HEADER_SIZE = 4
 LENGTH_SIZE = 2
@@ -70,3 +72,6 @@ def parseDataPacket(msg):
     msg_length = decompressBytesNumber(msg[8:10])
     datacontent = msg[10:10 + msg_length]
     return total_packets, num_packet, msg_length, datacontent
+
+def hashSHA512Bytes(s):
+    return hashlib.sha512(s).digest()

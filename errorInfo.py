@@ -46,8 +46,9 @@ UpdateList cannot be used until the server re-stands up"
 WARN_SVR_CL_DOWN =": Client {0}:{1} in cache is not reachable now, removed from\
  clients list."
 INFO_SVR_FDPREV = ": Found connection cache, loaded the clients list: {0}"
-INFO_SVR_NEWNODE = ": Received request from new client {0}:{1}, write it into cache"
+INFO_SVR_NEWNODE = ": Request processed is from a new client {0}:{1}, write it into cache"
 INFO_SVR_FD_INIT = ": Received Find requeste for \"{0}\" from {1}:{2}"
+INFO_SVR_FD_RES = ": Found {0} have the file \"{1}\""
 INFO_SVR_FD_OK = ": Nodes list which has File \"{0}\" has been queued for \
 sending to {1}:{2}"
 INFO_SVR_UP_INIT = ": Received Update List request from {0}:{1}"

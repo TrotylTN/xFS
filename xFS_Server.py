@@ -88,7 +88,7 @@ def main():
         for addrport in connectedNodes:
             [clientIP, clientPort] = addrport.split(':')
             clientThreads.append(threading.Thread(target=informClientsIAmBack, \
-                args=(clientIP, clientPort, threadRes)))
+                args=(clientIP, int(clientPort), threadRes)))
             clientThreads[-1].start()
 
         # put the updated clients list into writing queue
@@ -144,6 +144,7 @@ def trackingServerHost(conn, srcAddr):
         for c in connectedNodes:
             if filename in fileTable[c]:
                 hostsHaveFile.append(c)
+        msg = str(datetime.now()) + INFO_SVR_FD_RES.format(hostsHaveFile, filename)
         # # OPTIMIZE: can test the host having the file, or do this on client side
         xFSreply = []
         listcontent = ";".join(hostsHaveFile).encode()
@@ -177,6 +178,7 @@ def trackingServerHost(conn, srcAddr):
             xFSreply = list()
             xFSreply.append(UNKNOWN_DL_REPLY)
         try:
+            deleted_one = 0
             if len(xFSreply) > 1:
                 # For Download and UpdateList, send the SHA512 first
                 sSock.send(fillPacket(xFSreply[0]))
@@ -184,11 +186,12 @@ def trackingServerHost(conn, srcAddr):
                 if r == ACK_REPLY:
                     # received ACK, send rest packets
                     del xFSreply[0]
+                    deleted_one = 1
                 else:
                     raise RuntimeError("Didn't receive ACK after sending SHA512")
             for x in xFSreply:
                 sSock.send(fillPacket(x))
-            msg = str(datetime.now()) + INFO_RE_FINISH.format(len(xFSreply), \
+            msg = str(datetime.now()) + INFO_RE_FINISH.format(len(xFSreply) + deleted_one, \
                 clientIP, clientPort)
             logQueue.put(msg)
             print(msg)
@@ -222,11 +225,11 @@ def trackingServerHost(conn, srcAddr):
             raise ValueError("SHA512's number & length does not match")
         contentCache = [None] * (total_packets + 1)
         # send ACK to the server
-        cSock.send(fillPacket(ACK_REPLY.encode()))
+        sSock.send(fillPacket(ACK_REPLY.encode()))
         # cache all the contents regardless of receiving order
         # it can be optimized
         for i in range(total_packets):
-            rdata = cSock.recv(MAX_PACKET_SIZE)
+            rdata = sSock.recv(MAX_PACKET_SIZE)
             tot, num_packet, msg_length, datacontent = parseDataPacket(rdata)
             contentCache[num_packet] = datacontent
         filecontent = bytes()
@@ -234,6 +237,7 @@ def trackingServerHost(conn, srcAddr):
             filecontent += contentCache[i]
         if hashSHA512Bytes(filecontent) == origSHA512:
             filelist = filecontent.decode().split(";")
+            addrport = "{0}:{1}".format(clientIP, clientPort)
             fileTable[addrport] = copy.copy(filelist)
             msg = str(datetime.now()) + INFO_SVR_UP_OK.format(clientIP, clientPort)
             logQueue.put(msg)
