@@ -15,10 +15,10 @@ ERROR_UNKNOWN = ": Received unrecognized request \"{0}\" from {1}:{2}"
 INFO_GL = ": Received GetLoad request from {0}:{1} and queued the reply"
 # information for UpdateList
 INFO_UD = ": Received Update List request from {0}:{1}"
-INFO_UD_OK = ": Directory \"{0}\" SHA-512 and lists have been loaded into sending\
+INFO_UD_OK = ": Directory \"{0}\" SHA-512 and list have been loaded into sending\
  queue to {1}:{2}"
 # information for sending packets
-INFO_RE_INIT = ": Total {0} reply packets will be sent to {1}:{2}"
+INFO_RE_INIT = ": Total {0} packets will be sent to {1}:{2}"
 INFO_RE_FINISH = ": Total {0} packets have been successfully sent to {1}:{2}"
 INFO_RE_EOS = ": Session with {0}:{1} has been closed"
 

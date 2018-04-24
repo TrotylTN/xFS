@@ -245,15 +245,6 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
     return
 
 #------------------------------------------------------------------------------#
-# a function will test whther a address is valid and reachable (return bool)
-def pingAIPAddress(remoteIP):
-    pingResponse = os.system("ping -c 1 {0}".format(remoteIP))
-    if pingResponse == 0:
-        # reachable
-        return True
-    else:
-        return False
-
 def checkFileName(filename):
     if len(filename) == 0:
         # empty string
@@ -353,8 +344,113 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
         trackingPort, sharedDir)
     logQueue.put(msg)
     print(msg)
+
     updatedOK = False
-    # TODO
+
+    try:
+        cSock = socket(AF_INET, SOCK_STREAM)
+    except error as msg:
+        cSock = None # Handle exception
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
+
+    try:
+        cSock.settimeout(10)
+        cSock.connect((trackingServer, trackingPort))
+        cSock.settimeout(None)
+    except error as msg:
+        cSock = None # Handle exception
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
+
+    if cSock is None:
+        # If the socket cannot be opened, write into log and return False
+        msg = str(datetime.now()) + ERROR_SCT_INIT
+        logQueue.put(msg)
+        print(msg)
+        # socket error
+        return updatedOK
+    # starts to send request to update the list
+    try:
+        cSock.send(fillPacket(UPDATELIST_REQUEST.encode()))
+        # wait for an ACK to continue sending packets
+        rdata = cSock.recv(MAX_PACKET_SIZE).decode()
+        if (rdata != ACK_REPLY):
+            raise RuntimeError("received unrecognized response for Update")
+    except error as msg:
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
+        return updatedOK
+        # socket error
+    fileslist = [f for f in os.listdir(sharedDir) \
+        if os.path.isfile(os.path.join(sharedDir, f)) and \
+        checkFileName(os.path.join(sharedDir, f))]
+    listcontent = ";".join(fileslist).encode()
+    # start to queue the update list message
+    xFSreply = list()
+    try:
+        total_packets = math.ceil(len(listcontent) / MAX_CONTECT_SIZE)
+        # make sure at least 1 packet for content will be sent
+        total_packets = max(1, total_packets)
+        # start to seal packet zero, SHA-512
+        packet_header = compressNumber4Bytes(total_packets) + \
+            compressNumber4Bytes(0) + compressLength2Bytes(64)
+        packet_content = hashSHA512Bytes(listcontent)
+        # total_packets/0/64: SHA-512 for verification
+        xFSreply.append(packet_header + packet_content)
+
+        for i in range(total_packets):
+            this_content = listcontent[i * MAX_CONTECT_SIZE:
+                (i + 1) * MAX_CONTECT_SIZE]
+            this_header = compressNumber4Bytes(total_packets) + \
+                compressNumber4Bytes(i + 1) + \
+                compressLength2Bytes(len(this_content))
+            xFSreply.append(this_header + this_content)
+        msg = str(datetime.now()) + INFO_UD_OK.format(sharedDir, \
+            trackingServer, trackingPort)
+        logQueue.put(msg)
+        print(msg)
+    except error as msg:
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
+        # met error, clear the queue and fill it with UNKNOWN_DL_REPLY
+        xFSreply = list()
+        xFSreply.append(UNKNOWN_DL_REPLY)
+    # start to send actual list contents
+    msg = str(datetime.now()) + INFO_RE_INIT.format(len(xFSreply), \
+        trackingServer, trackingPort)
+    logQueue.put(msg)
+    print(msg)
+    try:
+        if len(xFSreply) > 1:
+            # For UpdateList, send the SHA512 first
+            cSock.send(fillPacket(xFSreply[0]))
+            r = cSock.recv(MAX_PACKET_SIZE).decode().strip()
+            if r == ACK_REPLY:
+                # received ACK, send rest packets
+                del xFSreply[0]
+            else:
+                raise RuntimeError("Didn't receive ACK after sending SHA512")
+        for x in xFSreply:
+            cSock.send(fillPacket(x))
+        msg = str(datetime.now()) + INFO_RE_FINISH.format(len(xFSreply), \
+            trackingServer, trackingPort)
+        logQueue.put(msg)
+        print(msg)
+        updatedOK = True
+    except error as msg:
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
+    # close this connection session
+    cSock.close()
+    msg = str(datetime.now()) + INFO_RE_EOS.format(trackingServer, trackingPort)
+    logQueue.put(msg)
+    print(msg)
 
     return updatedOK
 
@@ -610,13 +706,7 @@ cannot contain ';' or ':' symbols.")
             first_space_idx = serverAndPort.index(' ')
             peerIP = serverAndPort[:first_space_idx]
             peerPort = serverAndPort[first_space_idx:].strip()
-            # check the IP and Port whether they are correct
-            if not pingAIPAddress(peerIP):
-                msg = str(datetime.now()) + ERROR_C_GL_UNRE.format(peerIP)
-                logQueue.put(msg)
-                print(msg)
-                continue
-            # the ip address is reachable, try to get the load
+            # try to get the load
             peerLoad = toPeerGetLoad(peerIP, peerPort, logQueue)
             msg = str(datetime.now()) + INFO_C_GL_RESP.format(peerIP, peerPort,\
                 peerLoad)
@@ -629,8 +719,7 @@ cannot contain ';' or ':' symbols.")
 
         elif sentence[:10].lower() == "updatelist":
             # updatelist
-            # TODO
-            pass
+            toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue)
 
         elif sentence[:4] == "help":
             # print help information
