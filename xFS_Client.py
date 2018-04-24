@@ -175,6 +175,11 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
         msg = str(datetime.now()) + INFO_UD.format(srcIP, srcPort)
         logQueue.put(msg)
         print(msg)
+        # when forced to update local file list to tracking server
+        # it means the server re-stands up
+        global serverIsUp
+        serverIsUp = True
+
         fileslist = [f for f in os.listdir(sharedDir) \
             if os.path.isfile(os.path.join(sharedDir, f)) and \
             checkFileName(os.path.join(sharedDir, f))]
