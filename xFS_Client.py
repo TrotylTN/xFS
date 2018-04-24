@@ -13,6 +13,7 @@ from errorInfo import *
 from xFSProtocol import *
 
 thisServerLoad = 0
+serverIsUp = False
 logQueue = Queue()
 
 def main():
@@ -155,7 +156,7 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
                 logQueue.put(msg)
                 print(msg)
             except error as msg:
-                msg = str(datetime.now()) + ": " + msg
+                msg = str(datetime.now()) + ": " + str(msg)
                 logQueue.put(msg)
                 print(msg)
                 # met error, clear the queue and fill it with UNKNOWN_DL_REPLY
@@ -201,7 +202,7 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
             logQueue.put(msg)
             print(msg)
         except error as msg:
-            msg = str(datetime.now()) + ": " + msg
+            msg = str(datetime.now()) + ": " + str(msg)
             logQueue.put(msg)
             print(msg)
             # met error, clear the queue and fill it with UNKNOWN_DL_REPLY
@@ -234,7 +235,7 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
         logQueue.put(msg)
         print(msg)
     except error as msg:
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
     # close this connection session
@@ -271,7 +272,7 @@ def toTrackFind(filename, trackingServer, trackingPort, logQueue):
         cSock = socket(AF_INET, SOCK_STREAM)
     except error as msg:
         cSock = None # Handle exception
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
 
@@ -281,9 +282,11 @@ def toTrackFind(filename, trackingServer, trackingPort, logQueue):
         cSock.settimeout(None)
     except error as msg:
         cSock = None # Handle exception
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
+        global serverIsUp
+        serverIsUp = False
 
     if cSock is None:
         # If the socket cannot be opened, write into log and return False
@@ -303,7 +306,7 @@ def toTrackFind(filename, trackingServer, trackingPort, logQueue):
         if total_packets == 0:
             raise ValueError("unknown error raised on server side")
     except error as msg:
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
         # socket error
@@ -354,7 +357,7 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
         cSock = socket(AF_INET, SOCK_STREAM)
     except error as msg:
         cSock = None # Handle exception
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
 
@@ -364,9 +367,11 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
         cSock.settimeout(None)
     except error as msg:
         cSock = None # Handle exception
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
+        global serverIsUp
+        serverIsUp = False
 
     if cSock is None:
         # If the socket cannot be opened, write into log and return False
@@ -383,7 +388,7 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
         if (rdata != ACK_REPLY):
             raise RuntimeError("received unrecognized response for Update")
     except error as msg:
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
         return updatedOK
@@ -417,7 +422,7 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
         logQueue.put(msg)
         print(msg)
     except error as msg:
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
         # met error, clear the queue and fill it with UNKNOWN_DL_REPLY
@@ -447,7 +452,7 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
         print(msg)
         updatedOK = True
     except error as msg:
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
     # close this connection session
@@ -465,6 +470,15 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
     msg = str(datetime.now()) + INFO_C_DL_INIT.format(filename)
     logQueue.put(msg)
     print(msg)
+
+    if (not serverIsUp):
+        # server is down, cannot access Find request
+        msg = str(datetime.now()) + ERROR_SVR_DOWN.format( \
+            trackingServer, trackingPort)
+        logQueue.put(msg)
+        print(msg)
+        # return internet error
+        return -2
 
     serverListWithThisFile = toTrackFind(filename, trackingServer, trackingPort\
         , logQueue)
@@ -487,7 +501,7 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
         cSock = socket(AF_INET, SOCK_STREAM)
     except error as msg:
         cSock = None # Handle exception
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
 
@@ -497,7 +511,7 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
         cSock.settimeout(None)
     except error as msg:
         cSock = None # Handle exception
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
 
@@ -517,7 +531,7 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
         rdata = cSock.recv(MAX_PACKET_SIZE)
         total_packets, num_packet, msg_length, datacontent = parseDataPacket(rdata)
     except error as msg:
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
         # socket error
@@ -597,7 +611,7 @@ def toPeerGetLoad(peerIP, peerPort, logQueue):
         cSock = socket(AF_INET, SOCK_STREAM)
     except error as msg:
         cSock = None # Handle exception
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
 
@@ -607,7 +621,7 @@ def toPeerGetLoad(peerIP, peerPort, logQueue):
         cSock.settimeout(None)
     except error as msg:
         cSock = None # Handle exception
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
 
@@ -626,7 +640,7 @@ def toPeerGetLoad(peerIP, peerPort, logQueue):
         rdata = cSock.recv(MAX_PACKET_SIZE).decode().strip()
         peerLoad = int(rdata)
     except error as msg:
-        msg = str(datetime.now()) + ": " + msg
+        msg = str(datetime.now()) + ": " + str(msg)
         logQueue.put(msg)
         print(msg)
         # closing the session
@@ -647,7 +661,14 @@ def toPeerGetLoad(peerIP, peerPort, logQueue):
 # the thread to monitor the command line's input
 def monitorCMD(sSock, localIP, localPort, trackingServer, trackingPort, logFile, sharedDir):
     global logQueue
-    while 1:
+    # update myself to the tracking server at the begining of launching
+    rtn = toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue)
+    global serverIsUp
+    if rtn:
+        serverIsUp = True
+    else:
+        serverIsUp = False
+    while True:
         sentence = input()
         if sentence[:4].lower() == "exit":
             #os.getpid() returns the parent thread id, which is the id of the main program
@@ -666,6 +687,14 @@ def monitorCMD(sSock, localIP, localPort, trackingServer, trackingPort, logFile,
             if not checkFileName(filename):
                 print ("Invalid file name, file name must be longer than 0 and \
 cannot contain ';' or ':' symbols.")
+                continue
+            if (not serverIsUp):
+                # server is down, cannot access Find request
+                msg = str(datetime.now()) + ERROR_SVR_DOWN.format( \
+                    trackingServer, trackingPort)
+                logQueue.put(msg)
+                print(msg)
+                # continue to next loop
                 continue
             # start to actually find this filename
             serverListWithThisFile = toTrackFind(filename, trackingServer,
@@ -725,6 +754,14 @@ cannot contain ';' or ':' symbols.")
 
         elif sentence[:10].lower() == "updatelist":
             # updatelist
+            if (not serverIsUp):
+                # server is down, cannot access Find request
+                msg = str(datetime.now()) + ERROR_SVR_DOWN.format( \
+                    trackingServer, trackingPort)
+                logQueue.put(msg)
+                print(msg)
+                # skipped to next loop
+                continue
             toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue)
 
         elif sentence[:4] == "help":
