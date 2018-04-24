@@ -248,7 +248,7 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
 # a function will test whther a address is valid and reachable (return bool)
 def pingAIPAddress(remoteIP):
     pingResponse = os.system("ping -c 1 {0}".format(remoteIP))
-    if response == 0:
+    if pingResponse == 0:
         # reachable
         return True
     else:
@@ -273,8 +273,78 @@ def toTrackFind(filename, trackingServer, trackingPort, logQueue):
         trackingPort)
     logQueue.put(msg)
     print(msg)
+
     res = []
-    # TODO
+    # init socket
+    try:
+        cSock = socket(AF_INET, SOCK_STREAM)
+    except error as msg:
+        cSock = None # Handle exception
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
+
+    try:
+        cSock.settimeout(10)
+        cSock.connect((trackingServer, trackingPort))
+        cSock.settimeout(None)
+    except error as msg:
+        cSock = None # Handle exception
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
+
+    if cSock is None:
+        # If the socket cannot be opened, write into log and return False
+        msg = str(datetime.now()) + ERROR_SCT_INIT
+        logQueue.put(msg)
+        print(msg)
+        # return error code -1, stands for not getting the response
+        return [ ]
+
+    # sending request to the tracking server
+    try:
+        findRequest = FIND_REQUEST.format(filename)
+        cSock.send(fillPacket(findRequest.encode()))
+        rdata = cSock.recv(MAX_PACKET_SIZE)
+        total_packets, num_packet, msg_length, datacontent = parseDataPacket(rdata)
+    except error as msg:
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
+        # socket error
+        return [ ]
+    if num_packet == 0 and len(datacontent) == 64:
+        origSHA512 = datacontent
+    else:
+        raise ValueError("SHA512's number & length does not match")
+    contentCache = [None] * (total_packets + 1)
+    # send ACK to the server
+    cSock.send(fillPacket(ACK_REPLY.encode()))
+    # cache all the contents regardless of receiving order
+    # it can be optimized
+    for i in range(total_packets):
+        rdata = cSock.recv(MAX_PACKET_SIZE)
+        tot, num_packet, msg_length, datacontent = parseDataPacket(rdata)
+        contentCache[num_packet] = datacontent
+    filecontent = bytes()
+    for i in range(1, total_packets + 1):
+        filecontent += contentCache[i]
+    if hashSHA512Bytes(filecontent) == origSHA512:
+        res =  filecontent.decode().split(';')
+        msg = str(datetime.now()) + INFO_C_FD_FINISH.format(trackingServer, \
+            trackingPort)
+        logQueue.put(msg)
+        print(msg)
+    else:
+        msg = str(datetime.now()) + ": SHA512 does not match for Find's result"
+        logQueue.put(msg)
+        print(msg)
+        return [ ]
+    cSock.close()
+    msg = str(datetime.now()) + INFO_RE_EOS.format(downloadAddr, downloadPort)
+    logQueue.put(msg)
+    print(msg)
     return res
 
 # subroutine to update current file list to the server
@@ -296,7 +366,8 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
     logQueue.put(msg)
     print(msg)
 
-    serverListWithThisFile = toTrackFind(filename, trackingServer, trackingPort)
+    serverListWithThisFile = toTrackFind(filename, trackingServer, trackingPort\
+        , logQueue)
     if len(serverListWithThisFile) == 0:
         # no host has this file
         msg = str(datetime.now()) + ERROR_C_DL_NOFILE.format(filename)
@@ -321,7 +392,9 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
         print(msg)
 
     try:
+        cSock.settimeout(10)
         cSock.connect((downloadAddr, downloadPort))
+        cSock.settimeout(None)
     except error as msg:
         cSock = None # Handle exception
         msg = str(datetime.now()) + ": " + msg
@@ -338,10 +411,17 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
 
     # cSock successfully initialized, start to connect to the server
     dlRequest = DOWNLOAD_REQUEST.format(filename)
-
-    # wait for the first response packet
-    rdata = cSock.recv(MAX_PACKET_SIZE)
-    total_packets, num_packet, msg_length, datacontent = parseDataPacket(rdata)
+    try:
+        cSock.send(fillPacket(dlRequest.encode()))
+        # wait for the first response packet
+        rdata = cSock.recv(MAX_PACKET_SIZE)
+        total_packets, num_packet, msg_length, datacontent = parseDataPacket(rdata)
+    except error as msg:
+        msg = str(datetime.now()) + ": " + msg
+        logQueue.put(msg)
+        print(msg)
+        # socket error
+        return -2
     if total_packets == 0:
         # received an error message
         # TODO log
@@ -420,7 +500,9 @@ def toPeerGetLoad(peerIP, peerPort, logQueue):
         print(msg)
 
     try:
+        cSock.settimeout(10)
         cSock.connect((peerIP, peerPort))
+        cSock.settimeout(None)
     except error as msg:
         cSock = None # Handle exception
         msg = str(datetime.now()) + ": " + msg
@@ -486,6 +568,7 @@ cannot contain ';' or ':' symbols.")
             # start to actually find this filename
             serverListWithThisFile = toTrackFind(filename, trackingServer,
                 trackingPort, logQueue)
+            # print the response list
             print(serverListWithThisFile)
 
         elif sentence[:8].lower() == "download":
@@ -528,7 +611,21 @@ cannot contain ';' or ':' symbols.")
             peerIP = serverAndPort[:first_space_idx]
             peerPort = serverAndPort[first_space_idx:].strip()
             # check the IP and Port whether they are correct
-            # TODO
+            if not pingAIPAddress(peerIP):
+                msg = str(datetime.now()) + ERROR_C_GL_UNRE.format(peerIP)
+                logQueue.put(msg)
+                print(msg)
+                continue
+            # the ip address is reachable, try to get the load
+            peerLoad = toPeerGetLoad(peerIP, peerPort, logQueue)
+            msg = str(datetime.now()) + INFO_C_GL_RESP.format(peerIP, peerPort,\
+                peerLoad)
+            logQueue.put(msg)
+            print(msg)
+            # print the response
+            if peerLoad >= 0:
+                # no error
+                print(peerLoad)
 
         elif sentence[:10].lower() == "updatelist":
             # updatelist
