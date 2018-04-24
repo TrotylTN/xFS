@@ -43,3 +43,6 @@ INFO_C_UD_INIT = ": Starts to update list to {0}:{1} for directory \"{2}\""
 # general using information or error message
 ERROR_SVR_DOWN = ": Tracking server {0}:{1} has been down currently, Find and \
 UpdateList cannot be used until the server re-stands up"
+WARN_SVR_CL_DOWN =": Client {0}:{1} in cache is not reachable now, removed from\
+ clients list."
+INFO_SVR_FDPREV = ": Found connection cache, loaded the clients list: {0}"

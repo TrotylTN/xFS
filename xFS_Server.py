@@ -15,6 +15,7 @@ from xFSProtocol import *
 
 logQueue = Queue()
 linkQueue = Queue()
+fileTable = dict()
 connectedNodes = list()
 CACHE_CONNECTED_FILE = "linkedNodes.cache"
 
@@ -29,7 +30,9 @@ def main():
     # global
     global logQueue
     global linkQueue
+
     global connectedNodes
+    global fileTable
 
     # bind a socket
     socket_created = True
@@ -73,6 +76,10 @@ def main():
         cacheFd.close()
         threadRes = list()
         clientThreads = list()
+        # logging the cache
+        msg = str(datetime.now()) + INFO_SVR_FDPREV.format(connectedNodes)
+        logQueue.put(msg)
+        print(msg)
         for addrport in connectedNodes:
             [clientIP, clientPort] = addrport.split(':')
             clientThreads.append(threading.Thread(target=informClientsIAmBack, \
@@ -80,6 +87,8 @@ def main():
             clientThreads[-1].start()
 
         # put the updated clients list into writing queue
+        for i in range(len(clientThreads)):
+            clientThreads[i].join()
         connectedNodes = copy.copy(threadRes)
         linkQueue.put(copy.copy(connectedNodes))
     else:
@@ -110,11 +119,95 @@ def main():
 
 # a multi-thread function to inform clients the server has been back
 def informClientsIAmBack(clientIP, clientPort, threadRes):
+    clientPort = int(clientPort)
     clientReachable = False
-    # TODO
+    global fileTable
+    global logQueue
 
-    if clientReachable:
-        threadRes.append("{0}:{1}".format(clientIP, clientPort))
+    try:
+        cSock = socket(AF_INET, SOCK_STREAM)
+    except error as msg:
+        cSock = None # Handle exception
+        msg = str(datetime.now()) + ": " + str(msg)
+        logQueue.put(msg)
+        print(msg)
+
+    try:
+        cSock.settimeout(5)
+        cSock.connect((clientIP, clientPort))
+        cSock.settimeout(None)
+    except error as msg:
+        cSock = None # Handle exception
+        msg = str(datetime.now()) + ": " + str(msg)
+        logQueue.put(msg)
+        print(msg)
+
+    if cSock is None:
+        # If the client connection cannot be opened, write into log and return
+        msg = str(datetime.now()) + WARN_SVR_CL_DOWN.format(clientIP, clientPort)
+        logQueue.put(msg)
+        print(msg)
+        # return here, we are sure that this client has been down
+        return
+
+    # client is reachable, connection has been built
+    clientReachable = True
+    # append this node into table
+    threadRes.append("{0}:{1}".format(clientIP, clientPort))
+    addrport = "{0}:{1}".format(clientIP, clientPort)
+    # start to send force update
+    try:
+        forcedUpdateRequest = UPDATELIST_REQUEST
+        cSock.send(fillPacket(forcedUpdateRequest.encode()))
+        rdata = cSock.recv(MAX_PACKET_SIZE)
+        total_packets, num_packet, msg_length, datacontent = parseDataPacket(rdata)
+    except error as msg:
+        msg = str(datetime.now()) + ": " + str(msg)
+        logQueue.put(msg)
+        print(msg)
+        # socket error
+        return
+    if total_packets == 0:
+        msg = ": Unknown error has been raised on client side"
+        msg = str(datetime.now()) + msg
+        logQueue.put(msg)
+        print(msg)
+        cSock.close()
+        msg = str(datetime.now()) + INFO_RE_EOS.format(downloadAddr, downloadPort)
+        logQueue.put(msg)
+        print(msg)
+        return
+    # prepare to receive the data content
+    if num_packet == 0 and len(datacontent) == 64:
+        origSHA512 = datacontent
+    else:
+        raise ValueError("SHA512's number & length does not match")
+    contentCache = [None] * (total_packets + 1)
+    # send ACK to the server
+    cSock.send(fillPacket(ACK_REPLY.encode()))
+    # cache all the contents regardless of receiving order
+    # it can be optimized
+    for i in range(total_packets):
+        rdata = cSock.recv(MAX_PACKET_SIZE)
+        tot, num_packet, msg_length, datacontent = parseDataPacket(rdata)
+        contentCache[num_packet] = datacontent
+    filecontent = bytes()
+    for i in range(1, total_packets + 1):
+        filecontent += contentCache[i]
+    if hashSHA512Bytes(filecontent) == origSHA512:
+        # this content is correctly downloaded
+        # save the content into file name table
+        filelist = filecontent.decode().split(";")
+        fileTable[addrport] = copy.copy(filelist)
+    else:
+        # this content is not the original one
+        raise RuntimeError("content received is broken")
+
+    # close the session
+    cSock.close()
+    msg = str(datetime.now()) + INFO_RE_EOS.format(downloadAddr, downloadPort)
+    logQueue.put(msg)
+    print(msg)
     return
 
 def writeToCache():
