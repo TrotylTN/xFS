@@ -35,11 +35,11 @@ def decompressBytesNumber(bs):
     return res
 
 # {0}: filename
-FIND_REQUEST = "FD{0}"
+FIND_REQUEST = "FD{0};{1};{2}"
 # {0}: filename
 DOWNLOAD_REQUEST = "DL{0}"
 GETLOAD_REQUEST = "GL"
-UPDATELIST_REQUEST = "UD"
+UPDATELIST_REQUEST = "UD{0};{1}"
 
 INVALID_REPLY = "IV"
 # dowload reply data frame (all bytes):

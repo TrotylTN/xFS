@@ -15,9 +15,13 @@ from xFSProtocol import *
 thisServerLoad = 0
 serverIsUp = False
 logQueue = Queue()
+localIP = str()
+localPort = int()
 
 def main():
     # main function
+    global localIP
+    global localPort
     (trackingServer, trackingPort, localPort, sharedDir) = parse_args()
     localIP = gethostbyname(gethostname())
     if not os.path.isdir(sharedDir):
@@ -311,7 +315,7 @@ def toTrackFind(filename, trackingServer, trackingPort, logQueue):
 
     # sending request to the tracking server
     try:
-        findRequest = FIND_REQUEST.format(filename)
+        findRequest = FIND_REQUEST.format(filename, localIP, localPort)
         cSock.send(fillPacket(findRequest.encode()))
         rdata = cSock.recv(MAX_PACKET_SIZE)
         total_packets, num_packet, msg_length, datacontent = parseDataPacket(rdata)
@@ -395,7 +399,7 @@ def toTrackUpdateList(trackingServer, trackingPort, sharedDir, logQueue):
         return updatedOK
     # starts to send request to update the list
     try:
-        cSock.send(fillPacket(UPDATELIST_REQUEST.encode()))
+        cSock.send(fillPacket(UPDATELIST_REQUEST.format(localIP,localPort).encode()))
         # wait for an ACK to continue sending packets
         rdata = cSock.recv(MAX_PACKET_SIZE).decode()
         if (rdata != ACK_REPLY):

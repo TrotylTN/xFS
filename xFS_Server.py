@@ -116,36 +116,26 @@ def main():
     # start to listen incoming transmission
     while True:
         conn, srcAddr = sSock.accept()
-        srcIP, srcPort = srcAddr
-        serverThread = threading.Thread(target=trackingServerHost, args=(conn, \
-            srcIP, srcPort))
+        serverThread = threading.Thread(target=trackingServerHost, args=(conn, srcAddr))
         serverThread.start()
 
 
-def trackingServerHost(conn, clientIP, clientPort):
+def trackingServerHost(conn, srcAddr):
     sSock = conn
     global connectedNodes
     global fileTable
     global linkQueue
     global logQueue
-    addrport = "{0}:{1}".format(clientIP, clientPort)
     xFSrequest = sSock.recv(MAX_PACKET_SIZE).decode().strip()
     if len(xFSrequest) == 0:
         sSock.close()
         return
-    # added the new client into client list
-    if not addrport in connectedNodes:
-        connectedNodes.append(addrport)
-        # clear the file list
-        fileTable[connectedNodes] = []
-        linkQueue.append(copy.copy(connectedNodes))
-        msg = str(datetime.now()) + INFO_SVR_NEWNODE.format(clientIP, clientPort)
-        logQueue.put(msg)
-        print(msg)
-
+    clientIP = "unknown"
+    clientPort = 0000
     if xFSrequest[:2] == "FD":
         # Find request
-        filename = xFSrequest[2:].strip()
+        [filename,clientIP,clientPort] = xFSrequest[2:].strip().split(";")
+        clientPort = int(clientPort)
         msg = str(datetime.now()) + INFO_SVR_FD_INIT.format(filename, clientIP,\
             clientPort)
         logQueue.put(msg)
@@ -209,6 +199,8 @@ def trackingServerHost(conn, clientIP, clientPort):
 
     elif xFSrequest[:2] == "UD":
         # update
+        [clientIP, clientPort] = xFSrequest[2:].strip().split(";")
+        clientPort = int(clientPort)
         msg = str(datetime.now()) + INFO_SVR_UP_INIT.format(clientIP, clientPort)
         logQueue.put(msg)
         print(msg)
@@ -258,11 +250,27 @@ def trackingServerHost(conn, clientIP, clientPort):
         print(msg)
         # added a NAK reply
         sSock.send(fillPacket(NONACK_REPLY.encode()))
+        # close this connection session
+        sSock.close()
+        msg = str(datetime.now()) + INFO_RE_EOS.format(clientIP, clientPort)
+        logQueue.put(msg)
+        print(msg)
+        return
     # close this connection session
     sSock.close()
     msg = str(datetime.now()) + INFO_RE_EOS.format(clientIP, clientPort)
     logQueue.put(msg)
     print(msg)
+    # added the new client into client list
+    addrport = "{0}:{1}".format(clientIP, clientPort)
+    if not addrport in connectedNodes:
+        connectedNodes.append(addrport)
+        # clear the file list
+        fileTable[addrport] = []
+        linkQueue.put(copy.copy(connectedNodes))
+        msg = str(datetime.now()) + INFO_SVR_NEWNODE.format(clientIP, clientPort)
+        logQueue.put(msg)
+        print(msg)
     return
 
 
@@ -307,7 +315,7 @@ def informClientsIAmBack(clientIP, clientPort, threadRes):
     addrport = "{0}:{1}".format(clientIP, clientPort)
     # start to send force update
     try:
-        forcedUpdateRequest = UPDATELIST_REQUEST
+        forcedUpdateRequest = UPDATELIST_REQUEST[:2]
         cSock.send(fillPacket(forcedUpdateRequest.encode()))
         rdata = cSock.recv(MAX_PACKET_SIZE)
         total_packets, num_packet, msg_length, datacontent = parseDataPacket(rdata)
