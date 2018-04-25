@@ -90,7 +90,7 @@ download rocketlaunching.exe
 2018-04-24 23:29:41.446091: Received response for Find from 127.0.0.1:5001: []
 2018-04-24 23:29:41.446181: Session with 127.0.0.1:5001 has been closed
 2018-04-24 23:29:41.446240: Under current record, no node has file "rocketlaunching.exe"
-Failed to dowload, see logs for details
+Failed to download, see logs for details
 ~~~
 
 ### B. 0 clients and 1 server with cache:
@@ -125,7 +125,7 @@ updatelist
 download w1_1_post.pdf
 2018-04-24 23:15:49.460518: Starts to download file "w1_1_post.pdf"
 2018-04-24 23:15:49.461400: Tracking server 127.0.0.1:5001 has been down currently, Find and UpdateList cannot be used until the server re-stands up
-Failed to dowload, see logs for details
+Failed to download, see logs for details
 getload Localhost 5102
 2018-04-24 23:16:29.572325: Starts to send GetLoad request to Localhost:5102
 2018-04-24 23:16:29.573987: Peer Localhost:5102's load: 0
@@ -305,12 +305,88 @@ download Project3.pdf
 2018-04-24 23:58:27.696274: Found node 192.168.3.3:5102 has file "Project3.pdf", start to download, this is No.5 try due to previous failure
 2018-04-24 23:58:27.703605: File "Project3.pdf" downloaded from 192.168.3.3:5102 is broken
 2018-04-24 23:58:27.703744: Session with 192.168.3.3:5102 has been closed
-Failed to dowload, see logs for details
+Failed to download, see logs for details
 ~~~
 Because we increased the noise adding rate to 90%, all 5 download tries have been failed due to broken downloaded file. But you can try again to download it. We decreased the noise adding rate back to 25% to make life easier after this round. :)
 
-Now try again to `download Project3.pdf`
+Now try again to `download Project3.pdf` in Client 4
 
 ~~~
+download Project3.pdf
+2018-04-25 00:00:50.893565: Starts to download file "Project3.pdf"
+2018-04-25 00:00:50.893666: Starts to send Find "Project3.pdf" to 127.0.0.1:5001
+2018-04-25 00:00:50.894688: Received response for Find from 127.0.0.1:5001: ['192.168.3.3:5101', '192.168.3.3:5102', '192.168.3.3:5105']
+2018-04-25 00:00:50.894895: Session with 127.0.0.1:5001 has been closed
+2018-04-25 00:00:50.894990: Starts to send GetLoad request to 192.168.3.3:5101
+2018-04-25 00:00:50.895961: Peer 192.168.3.3:5101's load: 0
+2018-04-25 00:00:50.896151: Session with 192.168.3.3:5101 has been closed
+2018-04-25 00:00:50.896291: Starts to send GetLoad request to 192.168.3.3:5102
+2018-04-25 00:00:50.897730: Peer 192.168.3.3:5102's load: 0
+2018-04-25 00:00:50.897912: Session with 192.168.3.3:5102 has been closed
+2018-04-25 00:00:50.898051: Found node 192.168.3.3:5102 has file "Project3.pdf", start to download
+2018-04-25 00:00:50.913070: File "Project3.pdf" downloaded from 192.168.3.3:5102 is broken
+2018-04-25 00:00:50.913332: Session with 192.168.3.3:5102 has been closed
+2018-04-25 00:00:50.913436: Starts to send GetLoad request to 192.168.3.3:5101
+2018-04-25 00:00:50.914290: Peer 192.168.3.3:5101's load: 0
+2018-04-25 00:00:50.914505: Session with 192.168.3.3:5101 has been closed
+2018-04-25 00:00:50.914660: Starts to send GetLoad request to 192.168.3.3:5102
+2018-04-25 00:00:50.916077: Peer 192.168.3.3:5102's load: 0
+2018-04-25 00:00:50.916197: Session with 192.168.3.3:5102 has been closed
+2018-04-25 00:00:50.916245: Found node 192.168.3.3:5102 has file "Project3.pdf", start to download, this is No.2 try due to previous failure
+2018-04-25 00:00:50.923485: File "Project3.pdf" downloaded from 192.168.3.3:5102 is broken
+2018-04-25 00:00:50.923736: Session with 192.168.3.3:5102 has been closed
+2018-04-25 00:00:50.923864: Starts to send GetLoad request to 192.168.3.3:5101
+2018-04-25 00:00:50.924530: Peer 192.168.3.3:5101's load: 0
+2018-04-25 00:00:50.924662: Session with 192.168.3.3:5101 has been closed
+2018-04-25 00:00:50.924710: Starts to send GetLoad request to 192.168.3.3:5102
+2018-04-25 00:00:50.925437: Peer 192.168.3.3:5102's load: 0
+2018-04-25 00:00:50.925527: Session with 192.168.3.3:5102 has been closed
+2018-04-25 00:00:50.925579: Found node 192.168.3.3:5102 has file "Project3.pdf", start to download, this is No.3 try due to previous failure
+2018-04-25 00:00:50.934221: File "Project3.pdf" from 192.168.3.3:5102 downloaded successfully
+Successfully downloaded
 ~~~
-First, it tried to download the file from Client 2, but failed because we crashed the client manually. The it re-tried to download the file from Client 1 and got success. All node selection actions are based on our node selection algorithm and the statics latency configure. Now, all clients except Client 3 all have the file `Project3.pdf`
+Now, it tried 3 times to get the file downloaded.
+
+##### Enter `updatelist` in  to let the tracking server know Client 4 has `Project3.pdf`
+Currently, All nodes except Client 3 have had the file `Project3.pdf`.
+##### Closed all other clients except Client 3
+##### Enter `Download Project3.pdf` in Client 3
+~~~
+download Project3.pdf
+2018-04-25 00:06:43.187568: Starts to download file "Project3.pdf"
+2018-04-25 00:06:43.187681: Starts to send Find "Project3.pdf" to 127.0.0.1:5001
+2018-04-25 00:06:43.188749: Received response for Find from 127.0.0.1:5001: ['192.168.3.3:5101', '192.168.3.3:5102', '192.168.3.3:5105', '192.168.3.3:5104']
+2018-04-25 00:06:43.189080: Session with 127.0.0.1:5001 has been closed
+2018-04-25 00:06:43.189301: Starts to send GetLoad request to 192.168.3.3:5101
+2018-04-25 00:06:43.190117: [Errno 61] Connection refused
+2018-04-25 00:06:43.190224: Local client socket cannot be initialized
+2018-04-25 00:06:43.190285: Starts to send GetLoad request to 192.168.3.3:5104
+2018-04-25 00:06:43.190606: [Errno 61] Connection refused
+2018-04-25 00:06:43.190675: Local client socket cannot be initialized
+2018-04-25 00:06:43.190722: Found node 192.168.3.3:5104 has file "Project3.pdf", start to download
+2018-04-25 00:06:43.191035: [Errno 61] Connection refused
+2018-04-25 00:06:43.191108: Local client socket cannot be initialized
+2018-04-25 00:06:43.191226: Starts to send GetLoad request to 192.168.3.3:5101
+2018-04-25 00:06:43.191516: [Errno 61] Connection refused
+2018-04-25 00:06:43.191590: Local client socket cannot be initialized
+2018-04-25 00:06:43.191639: Found node 192.168.3.3:5101 has file "Project3.pdf", start to download, this is No.2 try due to previous failure
+2018-04-25 00:06:43.191946: [Errno 61] Connection refused
+2018-04-25 00:06:43.192021: Local client socket cannot be initialized
+2018-04-25 00:06:43.192068: Starts to send GetLoad request to 192.168.3.3:5102
+2018-04-25 00:06:43.192350: [Errno 61] Connection refused
+2018-04-25 00:06:43.192428: Local client socket cannot be initialized
+2018-04-25 00:06:43.192487: Starts to send GetLoad request to 192.168.3.3:5105
+2018-04-25 00:06:43.192758: [Errno 61] Connection refused
+2018-04-25 00:06:43.192821: Local client socket cannot be initialized
+2018-04-25 00:06:43.192882: Found node 192.168.3.3:5105 has file "Project3.pdf", start to download, this is No.3 try due to previous failure
+2018-04-25 00:06:43.193135: [Errno 61] Connection refused
+2018-04-25 00:06:43.193199: Local client socket cannot be initialized
+2018-04-25 00:06:43.193249: Starts to send GetLoad request to 192.168.3.3:5102
+2018-04-25 00:06:43.193526: [Errno 61] Connection refused
+2018-04-25 00:06:43.193641: Local client socket cannot be initialized
+2018-04-25 00:06:43.193722: Found node 192.168.3.3:5102 has file "Project3.pdf", start to download, this is No.4 try due to previous failure
+2018-04-25 00:06:43.193986: [Errno 61] Connection refused
+2018-04-25 00:06:43.194056: Local client socket cannot be initialized
+Failed to download, see logs for details
+~~~
+Though Client 3 knew that there were 4 nodes have this file, but it cannot get them because we've closed all of them. It tried all the nodes (4 nodes) and found there's no successful connection, then told user 'Failed to download'

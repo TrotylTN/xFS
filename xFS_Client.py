@@ -550,8 +550,8 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
         thisRoundIndex = findSuitableServerIdx(copy.copy(serverListWithThisFile), logQueue)
 
         tryTimeAServer += 1
-        dowloadNode = copy.copy(serverListWithThisFile[thisRoundIndex])
-        [downloadAddr, downloadPort] = dowloadNode.split(':')
+        downloadNode = copy.copy(serverListWithThisFile[thisRoundIndex])
+        [downloadAddr, downloadPort] = downloadNode.split(':')
         downloadPort = int(downloadPort)
         if tryTimeAServer == 1:
             msg = str(datetime.now()) + INFO_C_DL_FDSV.format(downloadAddr, \
@@ -797,7 +797,7 @@ cannot contain ';' or ':' symbols.")
                     # everything is good
                     print("Successfully downloaded")
                 else:
-                    print("Failed to dowload, see logs for details")
+                    print("Failed to download, see logs for details")
         elif sentence[:7].lower() == "getload":
             # getload {server} {port}
             serverAndPort = sentence[7:].strip()

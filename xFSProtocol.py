@@ -45,7 +45,7 @@ GETLOAD_REQUEST = "GL"
 UPDATELIST_REQUEST = "UD{0};{1}"
 
 INVALID_REPLY = "IV"
-# dowload reply data frame (all bytes):
+# download reply data frame (all bytes):
 #   4 bytes: total packets;     (0~268435455)
 #   4 bytes: current packet #;  (0~268435455)
 #   2 bytes: this packet length (max 1014)
