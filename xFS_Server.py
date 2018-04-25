@@ -237,8 +237,9 @@ def trackingServerHost(conn, srcAddr):
             filecontent += contentCache[i]
         if hashSHA512Bytes(filecontent) == origSHA512:
             filelist = filecontent.decode().split(";")
+            if filecontent.decode() == "":
+                filelist = list()
             addrport = "{0}:{1}".format(clientIP, clientPort)
-            fileTable[addrport] = list()
             fileTable[addrport] = copy.deepcopy(filelist)
             msg = str(datetime.now()) + INFO_SVR_F_UP_SUCC.format(clientIP, clientPort,\
                 fileTable[addrport])
@@ -360,7 +361,8 @@ def informClientsIAmBack(clientIP, clientPort, threadRes):
         # this content is correctly downloaded
         # save the content into file name table
         filelist = filecontent.decode().split(";")
-        fileTable[addrport] = list()
+        if filecontent.decode() == "":
+            filelist = list()
         fileTable[addrport] = copy.deepcopy(filelist)
     else:
         # this content is not the original one
