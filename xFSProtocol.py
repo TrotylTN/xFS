@@ -81,8 +81,7 @@ def addNoise25Randomly(filecontent, logQueue):
     if random.randint(0, 100) < 25:
         # 25% probablity to generate a voice into the file
         if len(filecontent) > 0:
-            del filecontent[0]
-            filecontent = b'\x7f' + filecontent
+            filecontent = b'\x7f' + filecontent[1:]
             msg = str(datetime.now()) + ": ! Added a noise into the filecontent to be sent"
             logQueue.put(msg)
             print(msg)
