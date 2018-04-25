@@ -163,6 +163,9 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
                 # total_packets/0/64: SHA-512 for verification
                 xFSreply.append(packet_header + packet_content)
 
+                # 25% percent to add noise
+                addNoise25Randomly(filecontent, logQueue)
+
                 for i in range(total_packets):
                     this_content = filecontent[i * MAX_CONTECT_SIZE:
                         (i + 1) * MAX_CONTECT_SIZE]
@@ -542,7 +545,7 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
 
     tryTimeAServer = 0
     while len(serverListWithThisFile) > 0 and tryTimeAServer < 5:
-        thisRoundIndex = findSuitableServerIdx(copy.copy(serverListWithThisFile))
+        thisRoundIndex = findSuitableServerIdx(copy.copy(serverListWithThisFile), logQueue)
 
         tryTimeAServer += 1
         dowloadNode = copy.copy(serverListWithThisFile[thisRoundIndex])

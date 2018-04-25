@@ -75,3 +75,14 @@ def parseDataPacket(msg):
 
 def hashSHA512Bytes(s):
     return hashlib.sha512(s).digest()
+
+def addNoise25Randomly(filecontent, logQueue):
+    import random
+    if random.randint(0, 100) < 25:
+        # 25% probablity to generate a voice into the file
+        if len(filecontent) > 0:
+            filecontent[0] = b'\x7f'
+            msg = str(datetime.now()) + ": ! Added a noise into the filecontent to be sent"
+            logQueue.put(msg)
+            print(msg)
+    return filecontent
