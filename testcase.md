@@ -253,3 +253,64 @@ Client 2 tried to download the file from client 5 first due to the given latency
 ### E. Download Failure
 ##### Open `tracking` server
 ##### Open `node1` `node2` `node3` `node4` and `node5` clients
+##### Enter `Download Project3.pdf` in Client 4
+~~~
+download Project3.pdf
+2018-04-24 23:58:27.625252: Starts to download file "Project3.pdf"
+2018-04-24 23:58:27.625422: Starts to send Find "Project3.pdf" to 127.0.0.1:5001
+2018-04-24 23:58:27.626677: Received response for Find from 127.0.0.1:5001: ['192.168.3.3:5101', '192.168.3.3:5102', '192.168.3.3:5105']
+2018-04-24 23:58:27.626786: Session with 127.0.0.1:5001 has been closed
+2018-04-24 23:58:27.626853: Starts to send GetLoad request to 192.168.3.3:5101
+2018-04-24 23:58:27.628432: Peer 192.168.3.3:5101's load: 0
+2018-04-24 23:58:27.628714: Session with 192.168.3.3:5101 has been closed
+2018-04-24 23:58:27.628789: Starts to send GetLoad request to 192.168.3.3:5102
+2018-04-24 23:58:27.630354: Peer 192.168.3.3:5102's load: 0
+2018-04-24 23:58:27.630580: Session with 192.168.3.3:5102 has been closed
+2018-04-24 23:58:27.630786: Found node 192.168.3.3:5102 has file "Project3.pdf", start to download
+2018-04-24 23:58:27.644843: File "Project3.pdf" downloaded from 192.168.3.3:5102 is broken
+2018-04-24 23:58:27.645039: Session with 192.168.3.3:5102 has been closed
+2018-04-24 23:58:27.645112: Starts to send GetLoad request to 192.168.3.3:5101
+2018-04-24 23:58:27.646319: Peer 192.168.3.3:5101's load: 0
+2018-04-24 23:58:27.646544: Session with 192.168.3.3:5101 has been closed
+2018-04-24 23:58:27.646599: Starts to send GetLoad request to 192.168.3.3:5102
+2018-04-24 23:58:27.647963: Peer 192.168.3.3:5102's load: 0
+2018-04-24 23:58:27.648077: Session with 192.168.3.3:5102 has been closed
+2018-04-24 23:58:27.648463: Found node 192.168.3.3:5102 has file "Project3.pdf", start to download, this is No.2 try due to previous failure
+2018-04-24 23:58:27.655415: File "Project3.pdf" downloaded from 192.168.3.3:5102 is broken
+2018-04-24 23:58:27.655641: Session with 192.168.3.3:5102 has been closed
+2018-04-24 23:58:27.655770: Starts to send GetLoad request to 192.168.3.3:5101
+2018-04-24 23:58:27.656487: Peer 192.168.3.3:5101's load: 0
+2018-04-24 23:58:27.656607: Session with 192.168.3.3:5101 has been closed
+2018-04-24 23:58:27.656683: Starts to send GetLoad request to 192.168.3.3:5102
+2018-04-24 23:58:27.657793: Peer 192.168.3.3:5102's load: 0
+2018-04-24 23:58:27.657921: Session with 192.168.3.3:5102 has been closed
+2018-04-24 23:58:27.658018: Found node 192.168.3.3:5102 has file "Project3.pdf", start to download, this is No.3 try due to previous failure
+2018-04-24 23:58:27.677802: File "Project3.pdf" downloaded from 192.168.3.3:5102 is broken
+2018-04-24 23:58:27.678006: Session with 192.168.3.3:5102 has been closed
+2018-04-24 23:58:27.678112: Starts to send GetLoad request to 192.168.3.3:5101
+2018-04-24 23:58:27.679884: Peer 192.168.3.3:5101's load: 0
+2018-04-24 23:58:27.680108: Session with 192.168.3.3:5101 has been closed
+2018-04-24 23:58:27.680241: Starts to send GetLoad request to 192.168.3.3:5102
+2018-04-24 23:58:27.683611: Peer 192.168.3.3:5102's load: 0
+2018-04-24 23:58:27.683887: Session with 192.168.3.3:5102 has been closed
+2018-04-24 23:58:27.684048: Found node 192.168.3.3:5102 has file "Project3.pdf", start to download, this is No.4 try due to previous failure
+2018-04-24 23:58:27.694033: File "Project3.pdf" downloaded from 192.168.3.3:5102 is broken
+2018-04-24 23:58:27.694283: Session with 192.168.3.3:5102 has been closed
+2018-04-24 23:58:27.694382: Starts to send GetLoad request to 192.168.3.3:5101
+2018-04-24 23:58:27.695329: Peer 192.168.3.3:5101's load: 0
+2018-04-24 23:58:27.695438: Session with 192.168.3.3:5101 has been closed
+2018-04-24 23:58:27.695479: Starts to send GetLoad request to 192.168.3.3:5102
+2018-04-24 23:58:27.696131: Peer 192.168.3.3:5102's load: 0
+2018-04-24 23:58:27.696222: Session with 192.168.3.3:5102 has been closed
+2018-04-24 23:58:27.696274: Found node 192.168.3.3:5102 has file "Project3.pdf", start to download, this is No.5 try due to previous failure
+2018-04-24 23:58:27.703605: File "Project3.pdf" downloaded from 192.168.3.3:5102 is broken
+2018-04-24 23:58:27.703744: Session with 192.168.3.3:5102 has been closed
+Failed to dowload, see logs for details
+~~~
+Because we increased the noise adding rate to 90%, all 5 download tries have been failed due to broken downloaded file. But you can try again to download it. We decreased the noise adding rate back to 25% to make life easier after this round. :)
+
+Now try again to `download Project3.pdf`
+
+~~~
+~~~
+First, it tried to download the file from Client 2, but failed because we crashed the client manually. The it re-tried to download the file from Client 1 and got success. All node selection actions are based on our node selection algorithm and the statics latency configure. Now, all clients except Client 3 all have the file `Project3.pdf`

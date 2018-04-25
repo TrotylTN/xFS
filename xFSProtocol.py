@@ -79,7 +79,7 @@ def hashSHA512Bytes(s):
 
 def addNoise25Randomly(filecontent, logQueue):
     import random
-    if random.randint(0, 100) < 75:
+    if random.randint(0, 100) < 25:
         # 25% probablity to generate a voice into the file
         if len(filecontent) > 0:
             filecontent = filecontent[:-256]
