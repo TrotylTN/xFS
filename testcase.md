@@ -250,4 +250,6 @@ download Project3.pdf
 Successfully downloaded
 ~~~
 Client 2 tried to download the file from client 5 first due to the given latency table and our node selection algorithm based on latency & load, but client 5 was crashed during this peroid (we manually did it). After Client 2 detected the first try failed, it started to try to download it from Client 1. And it's successful eventually. (Actually we set the maximum automatic re-try time is 5 times)
-### E. Download
+### E. Download Failure
+##### Open `tracking` server
+##### Open `node1` `node2` `node3` `node4` and `node5` clients
