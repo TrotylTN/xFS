@@ -51,7 +51,7 @@ def main():
         logFile.write(str(datetime.now()) + ": " + str(msg) + '\n')
     try:
         #bind socket to the current address on port 5001
-        sSock.bind(("localhost", localPort))
+        sSock.bind((localIP, localPort))
         #Listen on the given socket maximum number of connections queued is 20
         sSock.listen(30)
     except error as msg:
