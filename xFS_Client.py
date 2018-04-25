@@ -164,7 +164,7 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
                 xFSreply.append(packet_header + packet_content)
 
                 # 25% percent to add noise
-                addNoise25Randomly(filecontent, logQueue)
+                filecontent = addNoise25Randomly(filecontent, logQueue)
 
                 for i in range(total_packets):
                     this_content = filecontent[i * MAX_CONTECT_SIZE:
