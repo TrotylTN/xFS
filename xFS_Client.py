@@ -783,31 +783,16 @@ cannot contain ';' or ':' symbols.")
                 print ("Invalid file name, file name must be longer than 0 and \
 cannot contain ';' or ':' symbols.")
                 continue
-            rtnStatus = toPeerDownload(filename, trackingServer, trackingPort, \
-                sharedDir, logQueue)
-            tryTimeDownload = 1
-            if rtnStatus == 0:
-                # everything is good
-                pass
-            elif rtnStatus == -1 or rtnStatus == -2:
-                # file error or socket broken
-                # please see log for details
-                pass
-            elif rtnStatus == 1:
-                # file broken, try to re-download
-                while tryTimeDownload <= 3 and rtnStatus == 1:
-                    msg = str(datetime.now()) + INFO_C_DL_AOTRY.format(filename)
-                    logQueue.put(msg)
-                    print(msg)
-                    tryTimeDownload += 1
-                    rtnStatus = toPeerDownload(filename, trackingServer, \
-                        trackingPort, sharedDir, logQueue)
-                    if rtnStatus == -1 or rtnStatus == -2:
-                        break
+            if os.path.isfile(os.path.join(sharedDir, filename)):
+                print("You already have the file locally")
             else:
-                # unexpected return status, raise an error
-                raise RuntimeError("toPeerDownload returned unknown status")
-
+                rtnStatus = toPeerDownload(filename, trackingServer, trackingPort, \
+                    sharedDir, logQueue)
+                if rtnStatus:
+                    # everything is good
+                    print("Successfully downloaded")
+                else:
+                    print("Failed to dowload, see logs for details")
         elif sentence[:7].lower() == "getload":
             # getload {server} {port}
             serverAndPort = sentence[7:].strip()
