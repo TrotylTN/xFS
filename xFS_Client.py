@@ -17,8 +17,15 @@ serverIsUp = False
 logQueue = Queue()
 localIP = str()
 localPort = int()
+latencyTable = dict()
+LATENCYCONFIG = "latency.config"
 
 def main():
+    # read the config file
+    global latencyTable
+    conFd = open(LATENCYCONFIG, 'r')
+    latencyTable = eval(conFd.read())
+    conFd.close()
     # main function
     global localIP
     global localPort
@@ -54,7 +61,7 @@ def main():
         #bind socket to the current address on port 5001
         sSock.bind(("localhost", localPort))
         #Listen on the given socket maximum number of connections queued is 20
-        sSock.listen(30)
+        sSock.listen(20)
     except error as msg:
         # Handle exception
         socket_created = False
@@ -273,8 +280,30 @@ def checkFileName(filename):
         return False
     return True
 
-def hashSHA512Bytes(s):
-    return hashlib.sha512(s).digest()
+def findSuitableServerIdx(serverList, logQueue):
+    act_val = 9999
+    etl_val = 9999
+    cur_idx = 0
+    for i in range(len(serverList)):
+        [peerIP, peerPort] = serverList[i].split(':')
+        peerPort = int(peerPort)
+        try:
+            fixedLatency = latencyTable[localPort][peerPort]
+        except error as msg:
+            fixedLatency = 0
+        if fixedLatency + 20 < etl_val:
+            cur_idx = i
+            act_val = fixedLatency
+            etl_val = fixedLatency + toPeerGetLoad(peerIP, peerPort, logQueue)
+        elif fixedLatency > etl_val:
+            pass
+        else:
+            peerLatency = fixedLatency + toPeerGetLoad(peerIP, peerPort, logQueue)
+            if peerLatency < etl_val:
+                cur_idx = i
+                etl_val = peerLatency
+                act_val = fixedLatency
+    return cur_idx
 
 #------------------------------------------------------------------------------#
 # subroutine to return the result for find request
@@ -513,8 +542,7 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
 
     tryTimeAServer = 0
     while len(serverListWithThisFile) > 0 and tryTimeAServer < 5:
-        # TODO
-        thisRoundIndex = 0
+        thisRoundIndex = findSuitableServerIdx(copy.copy(serverListWithThisFile))
 
         tryTimeAServer += 1
         dowloadNode = copy.copy(serverListWithThisFile[thisRoundIndex])

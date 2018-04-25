@@ -238,11 +238,12 @@ def trackingServerHost(conn, srcAddr):
         if hashSHA512Bytes(filecontent) == origSHA512:
             filelist = filecontent.decode().split(";")
             addrport = "{0}:{1}".format(clientIP, clientPort)
-            fileTable[addrport] = copy.copy(filelist)
-            msg = str(datetime.now()) + INFO_SVR_UP_OK.format(clientIP, clientPort)
+            fileTable[addrport] = list()
+            fileTable[addrport] = copy.deepcopy(filelist)
+            msg = str(datetime.now()) + INFO_SVR_F_UP_SUCC.format(clientIP, clientPort,\
+                fileTable[addrport])
             logQueue.put(msg)
             print(msg)
-            print(filelist)
         else:
             msg = str(datetime.now()) + ": SHA512 does not match for Update's result"
             logQueue.put(msg)
@@ -270,7 +271,6 @@ def trackingServerHost(conn, srcAddr):
     if not addrport in connectedNodes:
         connectedNodes.append(addrport)
         # clear the file list
-        fileTable[addrport] = []
         linkQueue.put(copy.copy(connectedNodes))
         msg = str(datetime.now()) + INFO_SVR_NEWNODE.format(clientIP, clientPort)
         logQueue.put(msg)
@@ -360,7 +360,8 @@ def informClientsIAmBack(clientIP, clientPort, threadRes):
         # this content is correctly downloaded
         # save the content into file name table
         filelist = filecontent.decode().split(";")
-        fileTable[addrport] = copy.copy(filelist)
+        fileTable[addrport] = list()
+        fileTable[addrport] = copy.deepcopy(filelist)
     else:
         # this content is not the original one
         raise RuntimeError("content received is broken")
@@ -412,5 +413,9 @@ def monitorQuit(sSock, localIP, localPort, logFile):
             logFile.close()
             sSock.close()
             os.kill(os.getpid(),9)
+        elif sentence[:5].lower() == "table":
+            print(fileTable)
+        elif sentence[:4].lower() == "node":
+            print(connectedNodes)
 
 main()
