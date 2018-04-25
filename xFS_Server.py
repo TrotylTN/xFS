@@ -366,6 +366,10 @@ def informClientsIAmBack(clientIP, clientPort, threadRes):
         raise RuntimeError("content received is broken")
 
     # close the session
+    msg = str(datetime.now()) + INFO_SVR_F_UP_SUCC.format(clientIP, clientPort,\
+        fileTable[addrport])
+    logQueue.put(msg)
+    print(msg)
     cSock.close()
     msg = str(datetime.now()) + INFO_RE_EOS.format(clientIP, clientPort)
     logQueue.put(msg)

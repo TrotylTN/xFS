@@ -183,7 +183,7 @@ def hostServer(conn, srcIP, srcPort, sharedDir, logQueue):
         xFSreply.append(str(thisServerLoad).encode())
     elif xFSrequest[:2] == "UD":
         # reply the file list to the requester
-        msg = str(datetime.now()) + INFO_UD.format(srcIP, srcPort)
+        msg = str(datetime.now()) + INFO_F_UD.format(srcIP, srcPort)
         logQueue.put(msg)
         print(msg)
         # when forced to update local file list to tracking server

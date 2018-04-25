@@ -15,6 +15,7 @@ ERROR_UNKNOWN = ": Received unrecognized request \"{0}\" from {1}:{2}"
 INFO_GL = ": Received GetLoad request from {0}:{1} and queued the reply"
 # information for UpdateList
 INFO_UD = ": Received Update List request from {0}:{1}"
+INFO_F_UD = ": Received Forced Update List request from {0}:{1}"
 INFO_UD_OK = ": Directory \"{0}\" SHA-512 and list have been loaded into sending\
  queue to {1}:{2}"
 # information for sending packets
@@ -53,3 +54,5 @@ INFO_SVR_FD_OK = ": Nodes list which has File \"{0}\" has been queued for \
 sending to {1}:{2}"
 INFO_SVR_UP_INIT = ": Received Update List request from {0}:{1}"
 INFO_SVR_UP_OK = ": Completely received Update List from Client {0}:{1} "
+INFO_SVR_F_UP_SUCC = ": Forced Update List for {0}:{1} has been successfully \
+executed, filelist: {2}"
