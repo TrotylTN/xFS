@@ -816,14 +816,19 @@ cannot contain ';' or ':' symbols.")
             peerPort = serverAndPort[first_space_idx:].strip()
             # try to get the load
             peerLoad = toPeerGetLoad(peerIP, peerPort, logQueue)
-            msg = str(datetime.now()) + INFO_C_GL_RESP.format(peerIP, peerPort,\
-                peerLoad)
-            logQueue.put(msg)
-            print(msg)
             # print the response
             if peerLoad >= 0:
                 # no error
+                msg = str(datetime.now()) + INFO_C_GL_RESP.format(peerIP, peerPort,\
+                    peerLoad)
+                logQueue.put(msg)
+                print(msg)
                 print(peerLoad)
+            else:
+                msg = str(datetime.now()) + ": {0}:{1} didn't response properly."\
+                    .format(peerIP, peerPort)
+                logQueue.put(msg)
+                print(msg)
 
         elif sentence[:10].lower() == "updatelist":
             # updatelist
