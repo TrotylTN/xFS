@@ -107,7 +107,7 @@ You can enter 'exit' anytime to stop the server.
 2018-04-24 22:14:25.363220: Client 192.168.3.3:5105 in cache is not reachable now, removed from clients list.
 ~~~
 
-The server will find out that the clients in file have gone, then remove them from the `connectedNodes` list
+The server would find out that the clients in file had left, then removed them from the `connectedNodes` list
 
 ### C. 2 clients and 0 server with cache:
 ##### 1. Enter `make node1` in terminal
@@ -133,7 +133,7 @@ getload Localhost 5102
 2018-04-24 23:16:29.574343: Peer Node Localhost:5102's current load is 0
 0
 ~~~
-After the Client 1 has been launched, it found the server is not available. So it will disable the functionality related to the tracking server (all operations except GetLoad) until the server is back.
+After the Client 1 had been launched, it realized the server was not available. It then disabled the functionality related to the tracking server (all operations except getload) until the server was back.
 
 ### D. 3 clients and 1 server
 ##### 1. Enter `make tracking` in terminal
@@ -191,7 +191,7 @@ server side
 2018-04-24 22:47:39.932951: Total 2 packets have been successfully sent to 192.168.3.3:5105
 2018-04-24 22:47:39.933092: Session with 192.168.3.3:5105 has been closed
 ~~~
-client 1 side (it's the only node has this file)
+client 1 side (it's the only node had this file)
 ~~~
 2018-04-24 22:47:39.933845: Received GetLoad request from 192.168.3.3:53525 and queued the reply
 2018-04-24 22:47:39.933960: Total 1 packets will be sent to 192.168.3.3:53525
@@ -203,7 +203,7 @@ client 1 side (it's the only node has this file)
 2018-04-24 22:47:39.944467: Total 141 packets have been successfully sent to 192.168.3.3:53526
 2018-04-24 22:47:39.944671: Session with 192.168.3.3:53526 has been closed
 ~~~
-##### Leave all clients but Kill the Server, then enter `make tracking` in terminal to re-open the Server
+##### Leave all clients but Kill the Server, then enter `make tracking` in Terminal to re-open the Server
 Server side
 ~~~
 xFS Tracking Server on 192.168.3.3:5001 has been launched.
@@ -249,7 +249,7 @@ download Project3.pdf
 2018-04-24 23:01:49.430781: File "Project3.pdf" from 192.168.3.3:5101 downloaded successfully
 Successfully downloaded
 ~~~
-Client 2 tried to download the file from client 5 first due to the given latency table and our node selection algorithm based on latency & load, but client 5 was crashed during this peroid (we manually did it). After Client 2 detected the first try failed, it started to try to download it from Client 1. And it's successful eventually. (Actually we set the maximum automatic re-try time is 5 times)
+Client 2 tried to download the file from client 5 first due to the given latency table and our node selection algorithm based on latency & load, but client 5 crashed during this peroid (we manually did it). After Client 2 detected the first try failed, it started to try to download it from Client 1. It's successful eventually. (Actually, we set the maximum automatic re-try time as 5 times)
 ### E. Download Failure
 ##### Open `tracking` server
 ##### Open `node1` `node2` `node3` `node4` and `node5` clients
@@ -307,7 +307,7 @@ download Project3.pdf
 2018-04-24 23:58:27.703744: Session with 192.168.3.3:5102 has been closed
 Failed to download, see logs for details
 ~~~
-Because we increased the noise adding rate to 90%, all 5 download tries have been failed due to broken downloaded file. But you can try again to download it. We decreased the noise adding rate back to 25% to make life easier after this round. :)
+Because we increased the noise adding rate to 90%, all 5 download tries had failed due to broken downloaded file. But one can try again to download it. We decreased the noise adding rate back to 25% to make life easier after this round. :)
 
 ###### Now try again to `download Project3.pdf` in Client 4
 
@@ -345,10 +345,10 @@ download Project3.pdf
 2018-04-25 00:00:50.934221: File "Project3.pdf" from 192.168.3.3:5102 downloaded successfully
 Successfully downloaded
 ~~~
-Now, it tried 3 times to get the file downloaded.
+It tried 3 times to get the file downloaded.
 
 ##### Enter `updatelist` in  to let the tracking server know Client 4 has `Project3.pdf`
-Currently, All nodes except Client 3 have had the file `Project3.pdf`.
+At this point, all nodes except Client 3 had had the file `Project3.pdf`.
 ##### Closed all other clients except Client 3
 ##### Enter `download Project3.pdf` in Client 3
 ~~~
@@ -389,4 +389,4 @@ download Project3.pdf
 2018-04-25 00:06:43.194056: Local client socket cannot be initialized
 Failed to download, see logs for details
 ~~~
-Though Client 3 knew that there were 4 nodes have this file, but it cannot get them because we've closed all of them. It tried all the nodes (4 nodes) and found there's no successful connection, then told user 'Failed to download'
+Though Client 3 acknowledged that there were 4 nodes had this file, but it could not fetch them because we'd closed all of them. It tried all the nodes (4 nodes) and found there's no successful connection, then told user 'Failed to download'.
