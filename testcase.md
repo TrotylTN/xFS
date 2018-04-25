@@ -52,9 +52,10 @@ node
 ### Enter `find Project3.pdf`, a binary file locally, on client side
 Client 1 side
 ~~~
-2018-04-24 22:23:52.905489: Starts to send Find "Project3.pdf" to 127.0.0.1:5001
-2018-04-24 22:23:52.906588: Received response for Find from 127.0.0.1:5001
-2018-04-24 22:23:52.906689: Session with 127.0.0.1:5001 has been closed
+find Project3.pdf
+2018-04-24 22:35:51.439572: Starts to send Find "Project3.pdf" to 127.0.0.1:5001
+2018-04-24 22:35:51.440663: Received response for Find from 127.0.0.1:5001: ['192.168.3.3:5101']
+2018-04-24 22:35:51.440767: Session with 127.0.0.1:5001 has been closed
 ['192.168.3.3:5101']
 ~~~
 Server side
@@ -92,7 +93,25 @@ You can enter 'exit' anytime to stop the server.
 The server will find out that the clients in file have gone, then remove them from the `connectedNodes` list
 
 # 3 clients and 1 server without cache
-### Enter `make tracking` in terminal
-### Enter `make node1` in terminal
-### Enter `make node2` in terminal
-### Enter `make node5` in terminal
+### 1. Enter `make tracking` in terminal
+### 2. Enter `make node1` in terminal
+### 3. Enter `make node2` in terminal
+### 4. Enter `make node5` in terminal (sharedDir for node 5 is empty)
+### 5. Enter `node` and `node` on server side
+Server side
+~~~
+node
+['192.168.3.3:5101', '192.168.3.3:5102', '192.168.3.3:5105']
+table
+{'192.168.3.3:5101': ['.DS_Store', 'aplusb_binary_file', 'emptyfile', 'Project3.pdf', 'short_file.txt', 'src_code.cpp'], '192.168.3.3:5102': ['w1_1_post.pdf', 'w1_2_post.pdf', 'w2_1_post.pdf', 'w2_2_post.pdf', 'w3_1_post.pdf', 'w3_2_post.pdf', 'w4_1_post.pdf', 'w4_2_post.pdf', 'w5_1_post.pdf', 'w5_2_post.pdf', 'w6_1_post.pdf', 'w6_2_post.pdf', 'w7_1_post.pdf', 'w7_2_post.pdf'], '192.168.3.3:5105': ['']}
+~~~
+### Enter `Download Project3.pdf` in client 5
+client 5 side
+~~~
+~~~
+server side
+~~~
+~~~
+client 1 side (it's the only node has this file)
+~~~
+~~~

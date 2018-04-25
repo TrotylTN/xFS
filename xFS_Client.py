@@ -724,6 +724,9 @@ def toPeerGetLoad(peerIP, peerPort, logQueue):
         return -1
 
     # closing the session
+    msg = str(datetime.now()) + ": Peer {0}:{1}'s load: {2}".format(peerIP, peerPort, peerLoad)
+    logQueue.put(msg)
+    print(msg)
     cSock.close()
     msg = str(datetime.now()) + INFO_RE_EOS.format(peerIP, peerPort)
     logQueue.put(msg)
