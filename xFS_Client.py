@@ -380,6 +380,8 @@ def toTrackFind(filename, trackingServer, trackingPort, logQueue):
         filecontent += contentCache[i]
     if hashSHA512Bytes(filecontent) == origSHA512:
         res =  filecontent.decode().split(';')
+        if (filecontent.decode() == ""):
+            res = list()
         msg = str(datetime.now()) + INFO_C_FD_FINISH.format(trackingServer, \
             trackingPort, res)
         logQueue.put(msg)

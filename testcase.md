@@ -93,7 +93,33 @@ You can enter 'exit' anytime to stop the server.
 
 The server will find out that the clients in file have gone, then remove them from the `connectedNodes` list
 
-### C. 3 clients and 1 server
+### C. 2 clients and 0 server with cache:
+##### 1. Enter `make node1` in terminal
+##### 2. Enter `make node2` in terminal
+##### 3. Try all operations in Client 1
+Client 1 side:
+~~~
+2018-04-24 23:11:11.158143: Starts to update list to 127.0.0.1:5001 for directory "./node1_shareDir"
+2018-04-24 23:11:11.158834: [Errno 61] Connection refused
+2018-04-24 23:11:11.158885: Local client socket cannot be initialized
+find w1_1_post.pdf
+2018-04-24 23:11:44.055938: Tracking server 127.0.0.1:5001 has been down currently, Find and UpdateList cannot be used until the server re-stands up
+updatelist
+2018-04-24 23:11:48.271839: Tracking server 127.0.0.1:5001 has been down currently, Find and UpdateList cannot be used until the server re-stands up
+download w1_1_post.pdf
+2018-04-24 23:15:49.460518: Starts to download file "w1_1_post.pdf"
+2018-04-24 23:15:49.461400: Tracking server 127.0.0.1:5001 has been down currently, Find and UpdateList cannot be used until the server re-stands up
+Failed to dowload, see logs for details
+getload Localhost 5102
+2018-04-24 23:16:29.572325: Starts to send GetLoad request to Localhost:5102
+2018-04-24 23:16:29.573987: Peer Localhost:5102's load: 0
+2018-04-24 23:16:29.574234: Session with Localhost:5102 has been closed
+2018-04-24 23:16:29.574343: Peer Node Localhost:5102's current load is 0
+0
+~~~
+After the Client 1 has been launched, it found the server is not available. So it will disable the functionality related to the tracking server (all operations except GetLoad) until the server is back.
+
+### D. 3 clients and 1 server
 ##### 1. Enter `make tracking` in terminal
 ##### 2. Enter `make node1` in terminal
 ##### 3. Enter `make node2` in terminal
@@ -208,3 +234,4 @@ download Project3.pdf
 Successfully downloaded
 ~~~
 Client 2 tried to download the file from client 5 first due to the given latency table and our node selection algorithm based on latency & load, but client 5 was crashed during this peroid (we manually did it). After Client 2 detected the first try failed, it started to try to download it from Client 1. And it's successful eventually. (Actually we set the maximum automatic re-try time is 5 times)
+### E. Download
