@@ -20,4 +20,4 @@ node4:
 	${PY} xFS_Client.py -d "./node4_shareDir" -l 5104
 
 node5:
-	${PY} xFS_Client.py -d "./node1_shareDir" -l 5105
+	${PY} xFS_Client.py -d "./node5_shareDir" -l 5105
