@@ -35,7 +35,7 @@ INFO_C_DL_AOTRY = ": Previous downloaded file \"{0}\" is broken, try another tim
 
 
 INFO_C_FD_INIT = ": Starts to send Find \"{0}\" to {1}:{2}"
-INFO_C_FD_FINISH = ": Received response for Find from {0}:{1}"
+INFO_C_FD_FINISH = ": Received response for Find from {0}:{1}: {2}"
 
 INFO_C_GL_INIT = ": Starts to send GetLoad request to {0}:{1}"
 ERROR_C_GL_UNRE = ": Peer Node {0} is not reachable"

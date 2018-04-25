@@ -88,3 +88,11 @@ You can enter 'exit' anytime to stop the server.
 2018-04-24 22:14:25.363129: [Errno 61] Connection refused
 2018-04-24 22:14:25.363220: Client 192.168.3.3:5105 in cache is not reachable now, removed from clients list.
 ~~~
+
+The server will find out that the clients in file have gone, then remove them from the `connectedNodes` list
+
+# 3 clients and 1 server without cache
+### Enter `make tracking` in terminal
+### Enter `make node1` in terminal
+### Enter `make node2` in terminal
+### Enter `make node5` in terminal
