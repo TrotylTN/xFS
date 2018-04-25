@@ -76,6 +76,22 @@ You already have the file locally
 
 There's nothing happened on server side because the request has not been sent
 
+##### Try to `find` and `download` two files not in record
+client 1 side
+~~~
+find flyingDoge.png
+2018-04-24 23:28:56.337931: Starts to send Find "flyingDoge.png" to 127.0.0.1:5001
+2018-04-24 23:28:56.339104: Received response for Find from 127.0.0.1:5001: []
+2018-04-24 23:28:56.339223: Session with 127.0.0.1:5001 has been closed
+[]
+download rocketlaunching.exe
+2018-04-24 23:29:41.444932: Starts to download file "rocketlaunching.exe"
+2018-04-24 23:29:41.445042: Starts to send Find "rocketlaunching.exe" to 127.0.0.1:5001
+2018-04-24 23:29:41.446091: Received response for Find from 127.0.0.1:5001: []
+2018-04-24 23:29:41.446181: Session with 127.0.0.1:5001 has been closed
+2018-04-24 23:29:41.446240: Under current record, no node has file "rocketlaunching.exe"
+Failed to dowload, see logs for details
+~~~
 
 ### B. 0 clients and 1 server with cache:
 ##### Enter `make tracking` in terminal
