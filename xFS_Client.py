@@ -59,7 +59,7 @@ def main():
         logFile.write(str(datetime.now()) + ": " + str(msg) + '\n')
     try:
         #bind socket to the current address on port 5001
-        sSock.bind((localIP, localPort))
+        sSock.bind(("0.0.0.0", localPort))
         #Listen on the given socket maximum number of connections queued is 20
         sSock.listen(20)
     except error as msg:
@@ -868,7 +868,7 @@ def writeToLog(logFile, logQueue):
 def parse_args():
     parser = ArgumentParser()
 
-    parser.add_argument('-t', '--trackingserver', type = str, default = 'localhost',
+    parser.add_argument('-t', '--trackingserver', type = str, default = '127.0.0.1',
         help = "specify a remote tracking server to connect (default: localhost)")
     parser.add_argument('-p', '--trackingport', type = int, default = 5001,
         help = "specify a port on the tracking port to connect (default: 5001)")
