@@ -2,7 +2,7 @@
 # Team Member: Tiannan Zhou, Xuan Bi
 # Written in Python 3
 
-import sys, threading, os, math, hashlib, errno
+import sys, threading, os, math, hashlib, errno, copy
 from socket import *
 from datetime import datetime
 from argparse import ArgumentParser
@@ -358,7 +358,7 @@ def toTrackFind(filename, trackingServer, trackingPort, logQueue):
         print(msg)
         return [ ]
     cSock.close()
-    msg = str(datetime.now()) + INFO_RE_EOS.format(downloadAddr, downloadPort)
+    msg = str(datetime.now()) + INFO_RE_EOS.format(trackingServer, trackingPort)
     logQueue.put(msg)
     print(msg)
     return res
@@ -499,7 +499,7 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
         logQueue.put(msg)
         print(msg)
         # return internet error
-        return -2
+        return False
 
     serverListWithThisFile = toTrackFind(filename, trackingServer, trackingPort\
         , logQueue)
@@ -508,118 +508,138 @@ def toPeerDownload(filename, trackingServer, trackingPort, sharedDir, logQueue):
         msg = str(datetime.now()) + ERROR_C_DL_NOFILE.format(filename)
         logQueue.put(msg)
         print(msg)
-        # -1 stands for file error
-        return -1
-    # TODO: to find the best server
-    dowloadNode = serverListWithThisFile[0]
-    [downloadAddr, downloadPort] = dowloadNode.split(':')
-    msg = str(datetime.now()) + INFO_C_DL_FDSV.format(downloadAddr, \
-        downloadPort, filename)
-    logQueue.put(msg)
-    print(msg)
+        # no file
+        return False
 
-    try:
-        cSock = socket(AF_INET, SOCK_STREAM)
-    except error as msg:
-        cSock = None # Handle exception
-        msg = str(datetime.now()) + ": " + str(msg)
-        logQueue.put(msg)
-        print(msg)
+    tryTimeAServer = 0
+    while len(serverListWithThisFile) > 0 and tryTimeAServer < 5:
+        # TODO
+        thisRoundIndex = 0
 
-    try:
-        cSock.settimeout(5)
-        cSock.connect((downloadAddr, downloadPort))
-        cSock.settimeout(None)
-    except error as msg:
-        cSock = None # Handle exception
-        msg = str(datetime.now()) + ": " + str(msg)
+        tryTimeAServer += 1
+        dowloadNode = copy.copy(serverListWithThisFile[thisRoundIndex])
+        [downloadAddr, downloadPort] = dowloadNode.split(':')
+        downloadPort = int(downloadPort)
+        if tryTimeAServer == 1:
+            msg = str(datetime.now()) + INFO_C_DL_FDSV.format(downloadAddr, \
+                downloadPort, filename)
+        else:
+            msg = str(datetime.now()) + INFO_C_DL_FDSV_N.format(downloadAddr, \
+                downloadPort, filename, tryTimeAServer)
         logQueue.put(msg)
         print(msg)
 
-    if cSock is None:
-        # If the socket cannot be opened, write into log and return False
-        msg = str(datetime.now()) + ERROR_SCT_INIT
-        logQueue.put(msg)
-        print(msg)
-        # socket error
-        return -2
+        try:
+            cSock = socket(AF_INET, SOCK_STREAM)
+        except error as msg:
+            cSock = None # Handle exception
+            msg = str(datetime.now()) + ": " + str(msg)
+            logQueue.put(msg)
+            print(msg)
 
-    # cSock successfully initialized, start to connect to the server
-    dlRequest = DOWNLOAD_REQUEST.format(filename)
-    try:
-        cSock.send(fillPacket(dlRequest.encode()))
-        # wait for the first response packet
-        rdata = cSock.recv(MAX_PACKET_SIZE)
-        total_packets, num_packet, msg_length, datacontent = parseDataPacket(rdata)
-    except error as msg:
-        msg = str(datetime.now()) + ": " + str(msg)
-        logQueue.put(msg)
-        print(msg)
-        # socket error
-        return -2
-    if total_packets == 0:
-        # received an error message
-        if num_packet == 0:
-            # invalid filename
-            msg = ": Invalid filename error has been raised on server side"
-        elif num_packet == 1:
-            # file is not existent on this host
-            msg = ": File non-existent error has been raised on server side"
-        elif num_packet == 2:
-            # unknown error on the server side
-            msg = ": Unknown error has been raised on server side"
-        msg = str(datetime.now()) + msg
-        logQueue.put(msg)
-        print(msg)
-        # no need to send ACK, close this session
+        try:
+            cSock.settimeout(5)
+            cSock.connect((downloadAddr, downloadPort))
+            cSock.settimeout(None)
+        except error as msg:
+            cSock = None # Handle exception
+            msg = str(datetime.now()) + ": " + str(msg)
+            logQueue.put(msg)
+            print(msg)
+
+        if cSock is None:
+            # If the socket cannot be opened, write into log and return False
+            msg = str(datetime.now()) + ERROR_SCT_INIT
+            logQueue.put(msg)
+            print(msg)
+            # internet error, next server
+            del serverListWithThisFile[thisRoundIndex]
+            continue
+
+        # cSock successfully initialized, start to connect to the server
+        dlRequest = DOWNLOAD_REQUEST.format(filename)
+        try:
+            cSock.send(fillPacket(dlRequest.encode()))
+            # wait for the first response packet
+            rdata = cSock.recv(MAX_PACKET_SIZE)
+            total_packets, num_packet, msg_length, datacontent = parseDataPacket(rdata)
+        except error as msg:
+            msg = str(datetime.now()) + ": " + str(msg)
+            logQueue.put(msg)
+            print(msg)
+            # no need to send ACK, close this session
+            cSock.close()
+            msg = str(datetime.now()) + INFO_RE_EOS.format(downloadAddr, downloadPort)
+            logQueue.put(msg)
+            print(msg)
+            # internet error, next server
+            del serverListWithThisFile[thisRoundIndex]
+            continue
+        if total_packets == 0:
+            # received an error message
+            if num_packet == 0:
+                # invalid filename
+                msg = ": Invalid filename error has been raised on server side"
+            elif num_packet == 1:
+                # file is not existent on this host
+                msg = ": File non-existent error has been raised on server side"
+            elif num_packet == 2:
+                # unknown error on the server side
+                msg = ": Unknown error has been raised on server side"
+            msg = str(datetime.now()) + msg
+            logQueue.put(msg)
+            print(msg)
+            # no need to send ACK, close this session
+            cSock.close()
+            msg = str(datetime.now()) + INFO_RE_EOS.format(downloadAddr, downloadPort)
+            logQueue.put(msg)
+            print(msg)
+            # file error, next server
+            del serverListWithThisFile[thisRoundIndex]
+            continue
+        # prepare to receive the data content
+        if num_packet == 0 and len(datacontent) == 64:
+            origSHA512 = datacontent
+        else:
+            raise ValueError("SHA512's number & length does not match")
+        contentCache = [None] * (total_packets + 1)
+        # send ACK to the server
+        cSock.send(fillPacket(ACK_REPLY.encode()))
+        # cache all the contents regardless of receiving order
+        # it can be optimized
+        for i in range(total_packets):
+            rdata = cSock.recv(MAX_PACKET_SIZE)
+            tot, num_packet, msg_length, datacontent = parseDataPacket(rdata)
+            contentCache[num_packet] = datacontent
+        filecontent = bytes()
+        for i in range(1, total_packets + 1):
+            filecontent += contentCache[i]
+        if hashSHA512Bytes(filecontent) == origSHA512:
+            # this file is correctly downloaded
+            # save the content into file
+            toSaveFile = os.path.join(sharedDir,filename)
+            saveFd = open(toSaveFile, 'wb')
+            saveFd.write(filecontent)
+            saveFd.close()
+            msg = str(datetime.now()) + INFO_C_DL_SUCC.format(filename, \
+                downloadAddr, downloadPort)
+            logQueue.put(msg)
+            print(msg)
+            # successfully downloaded
+            return True
+        else:
+            # this file is not the original file
+            # file broken, try this server again
+            msg = str(datetime.now()) + ERROR_C_DL_FILEBROKEN.format(filename, \
+                downloadAddr, downloadPort)
+            logQueue.put(msg)
+            print(msg)
         cSock.close()
         msg = str(datetime.now()) + INFO_RE_EOS.format(downloadAddr, downloadPort)
         logQueue.put(msg)
         print(msg)
-        # -1 stands for file error
-        return -1
-    # prepare to receive the data content
-    if num_packet == 0 and len(datacontent) == 64:
-        origSHA512 = datacontent
-    else:
-        raise ValueError("SHA512's number & length does not match")
-    contentCache = [None] * (total_packets + 1)
-    # send ACK to the server
-    cSock.send(fillPacket(ACK_REPLY.encode()))
-    # cache all the contents regardless of receiving order
-    # it can be optimized
-    for i in range(total_packets):
-        rdata = cSock.recv(MAX_PACKET_SIZE)
-        tot, num_packet, msg_length, datacontent = parseDataPacket(rdata)
-        contentCache[num_packet] = datacontent
-    filecontent = bytes()
-    for i in range(1, total_packets + 1):
-        filecontent += contentCache[i]
-    if hashSHA512Bytes(filecontent) == origSHA512:
-        # this file is correctly downloaded
-        # save the content into file
-        toSaveFile = os.path.join(sharedDir,filename)
-        saveFd = open(toSaveFile, 'wb')
-        saveFd.write(filecontent)
-        saveFd.close()
-        msg = str(datetime.now()) + INFO_C_DL_SUCC.format(filename, \
-            downloadAddr, downloadPort)
-        logQueue.put(msg)
-        print(msg)
-        fileOK = 0
-    else:
-        # this file is not the original file
-        msg = str(datetime.now()) + ERROR_C_DL_FILEBROKEN.format(filename, \
-            downloadAddr, downloadPort)
-        logQueue.put(msg)
-        print(msg)
-        # 1 stands for file broken
-        fileOK = 1
-    cSock.close()
-    msg = str(datetime.now()) + INFO_RE_EOS.format(downloadAddr, downloadPort)
-    logQueue.put(msg)
-    print(msg)
-    return fileOK
+    # tried all severs or failed more than 3 times but not download successfully
+    return False
 
 #subroutine to get the load of a specified peer server, it will return peer load
 def toPeerGetLoad(peerIP, peerPort, logQueue):
