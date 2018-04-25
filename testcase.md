@@ -149,10 +149,10 @@ table
 {'192.168.3.3:5101': ['.DS_Store', 'aplusb_binary_file', 'emptyfile', 'Project3.pdf', 'short_file.txt', 'src_code.cpp'], '192.168.3.3:5102': ['w1_1_post.pdf', 'w1_2_post.pdf', 'w2_1_post.pdf', 'w2_2_post.pdf', 'w3_1_post.pdf', 'w3_2_post.pdf', 'w4_1_post.pdf', 'w4_2_post.pdf', 'w5_1_post.pdf', 'w5_2_post.pdf', 'w6_1_post.pdf', 'w6_2_post.pdf', 'w7_1_post.pdf', 'w7_2_post.pdf'], '192.168.3.3:5105': ['']}
 ~~~
 
-##### Enter `GetLoad 192.168.3.3 5102` in client 5
+##### Enter `getload 192.168.3.3 5102` in client 5
 client 5 side
 ~~~
-GetLoad 192.168.3.3 5102
+getload 192.168.3.3 5102
 2018-04-24 22:51:05.835913: Starts to send GetLoad request to 192.168.3.3:5102
 2018-04-24 22:51:05.836908: Peer 192.168.3.3:5102's load: 0
 2018-04-24 22:51:05.837028: Session with 192.168.3.3:5102 has been closed
@@ -168,7 +168,7 @@ client 2 side
 2018-04-24 22:51:05.836994: Session with 192.168.3.3:53615 has been closed
 ~~~
 
-##### Enter `Download Project3.pdf` in client 5
+##### Enter `download Project3.pdf` in client 5
 client 5 side
 ~~~
 download Project3.pdf
@@ -253,7 +253,7 @@ Client 2 tried to download the file from client 5 first due to the given latency
 ### E. Download Failure
 ##### Open `tracking` server
 ##### Open `node1` `node2` `node3` `node4` and `node5` clients
-##### Enter `Download Project3.pdf` in Client 4
+##### Enter `download Project3.pdf` in Client 4
 ~~~
 download Project3.pdf
 2018-04-24 23:58:27.625252: Starts to download file "Project3.pdf"
@@ -309,7 +309,7 @@ Failed to download, see logs for details
 ~~~
 Because we increased the noise adding rate to 90%, all 5 download tries have been failed due to broken downloaded file. But you can try again to download it. We decreased the noise adding rate back to 25% to make life easier after this round. :)
 
-Now try again to `download Project3.pdf` in Client 4
+###### Now try again to `download Project3.pdf` in Client 4
 
 ~~~
 download Project3.pdf
@@ -350,7 +350,7 @@ Now, it tried 3 times to get the file downloaded.
 ##### Enter `updatelist` in  to let the tracking server know Client 4 has `Project3.pdf`
 Currently, All nodes except Client 3 have had the file `Project3.pdf`.
 ##### Closed all other clients except Client 3
-##### Enter `Download Project3.pdf` in Client 3
+##### Enter `download Project3.pdf` in Client 3
 ~~~
 download Project3.pdf
 2018-04-25 00:06:43.187568: Starts to download file "Project3.pdf"
